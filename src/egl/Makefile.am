@@ -86,7 +86,9 @@ endif
 
 if HAVE_EGL_PLATFORM_ANDROID
 AM_CFLAGS += -DHAVE_ANDROID_PLATFORM
-dri2_backend_FILES += drivers/dri2/platform_android.c
+dri2_backend_FILES += \
+	drivers/dri2/platform_android.c \
+	drivers/dri2/egl_dri2_drm_gralloc.h
 endif
 
 if HAVE_EGL_DRIVER_DRI2
