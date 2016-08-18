@@ -2056,6 +2056,12 @@ for plat in $egl_platforms; do
 		;;
 
 	android)
+		AC_CHECK_LIB([cutils],[__android_log_print],[],
+			[AC_MSG_ERROR([cutils library not found])])
+		AC_CHECK_LIB([hardware],[hw_get_module],[],
+			[AC_MSG_ERROR([hardware library not found])])
+		AC_CHECK_LIB([sync],[sync_wait],[],
+			[AC_MSG_ERROR([sync library not found])])
 		;;
 
 	*)
