@@ -65,6 +65,8 @@ LOCAL_C_INCLUDES := \
 LOCAL_WHOLE_STATIC_LIBRARIES += \
 	libmesa_program
 
+LOCAL_GENERATED_SOURCES := $(MESA_GEN_NIR_H)
+
 LOCAL_STATIC_LIBRARIES += libmesa_nir libmesa_glsl
 
 include $(LOCAL_PATH)/Android.gen.mk
