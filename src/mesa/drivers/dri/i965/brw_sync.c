@@ -38,6 +38,8 @@
  * performance bottleneck, though.
  */
 
+#include <poll.h>
+
 #include "main/imports.h"
 
 #include "brw_context.h"
@@ -47,11 +49,19 @@ struct brw_fence {
    struct brw_context *brw;
 
    enum brw_fence_type {
+      /** The fence waits for completion of brw_fence::batch_bo. */
       BRW_FENCE_TYPE_BO_WAIT,
+
+      /** The fence waits for brw_fence::sync_fd to signal. */
+      BRW_FENCE_TYPE_SYNC_FD,
    } type;
 
-   /** The fence waits for completion of this batch. */
-   drm_intel_bo *batch_bo;
+   union {
+      drm_intel_bo *batch_bo;
+
+      /* This struct owns the fd. */
+      int sync_fd;
+   };
 
    mtx_t mutex;
    bool signalled;
@@ -61,6 +71,40 @@ struct brw_gl_sync {
    struct gl_sync_object gl;
    struct brw_fence fence;
 };
+
+/**
+ * Return 1 if the fd is ready; 0 if the timeout elapsed; -1 on error.
+ */
+static int
+sync_fd_wait(int fd, uint64_t timeout)
+{
+   int n_fds_ready = 0;
+
+   struct pollfd fds = {
+      .fd = fd,
+      .events = POLLIN,
+   };
+
+   struct timespec timeout_ts = {
+      .tv_sec = timeout / 1000000000,
+      .tv_nsec = timeout % 1000000000,
+   };
+
+   n_fds_ready = ppoll(&fds, 1, &timeout_ts, /*sigmask*/ NULL);
+
+   if (n_fds_ready < 0)
+      return -1;
+
+   if (n_fds_ready == 0)
+      return 0;
+
+   if (!(fds.revents & POLLIN)) {
+      /* revents contains some error flag */
+      return -1;
+   }
+
+   return 1;
+}
 
 static void
 brw_fence_init(struct brw_context *brw, struct brw_fence *fence,
@@ -74,6 +118,9 @@ brw_fence_init(struct brw_context *brw, struct brw_fence *fence,
    case BRW_FENCE_TYPE_BO_WAIT:
       fence->batch_bo = NULL;
       break;
+    case BRW_FENCE_TYPE_SYNC_FD:
+      fence->sync_fd = -1;
+      break;
    }
 }
 
@@ -84,6 +131,10 @@ brw_fence_finish(struct brw_fence *fence)
    case BRW_FENCE_TYPE_BO_WAIT:
       if (fence->batch_bo)
          drm_intel_bo_unreference(fence->batch_bo);
+      break;
+   case BRW_FENCE_TYPE_SYNC_FD:
+      if (fence->sync_fd != -1)
+         close(fence->sync_fd);
       break;
    }
 
@@ -109,9 +160,32 @@ brw_fence_insert_locked(struct brw_context *brw, struct brw_fence *fence)
          return false;
       }
       break;
+   case BRW_FENCE_TYPE_SYNC_FD:
+      if (fence->sync_fd == -1) {
+         /* Create an out-fence */
+         if (intel_batchbuffer_flush_fence(brw, -1, &fence->sync_fd) < 0)
+            return false;
+      } else {
+         /* Wait on an in-fence */
+         if (intel_batchbuffer_flush_fence(brw, fence->sync_fd, NULL) < 0)
+            return false;
+      }
+      break;
    }
 
    return true;
+}
+
+static bool MUST_CHECK
+brw_fence_insert(struct brw_context *brw, struct brw_fence *fence)
+{
+   bool ret;
+
+   mtx_lock(&fence->mutex);
+   ret = brw_fence_insert_locked(brw, fence);
+   mtx_unlock(&fence->mutex);
+
+   return ret;
 }
 
 static bool
@@ -130,6 +204,16 @@ brw_fence_has_completed_locked(struct brw_fence *fence)
 
       drm_intel_bo_unreference(fence->batch_bo);
       fence->batch_bo = NULL;
+      fence->signalled = true;
+
+      return true;
+
+   case BRW_FENCE_TYPE_SYNC_FD:
+      assert(fence->sync_fd != -1);
+
+      if (sync_fd_wait(fence->sync_fd, 0) != 1)
+         return false;
+
       fence->signalled = true;
 
       return true;
@@ -177,6 +261,15 @@ brw_fence_client_wait_locked(struct brw_context *brw, struct brw_fence *fence,
       fence->batch_bo = NULL;
 
       return true;
+   case BRW_FENCE_TYPE_SYNC_FD:
+      if (fence->sync_fd == -1)
+         return false;
+
+      if (sync_fd_wait(fence->sync_fd, timeout) != 1)
+         return false;
+
+      fence->signalled = true;
+      return true;
    }
 
    assert(!"bad enum brw_fence_type");
@@ -210,6 +303,16 @@ brw_fence_server_wait(struct brw_context *brw, struct brw_fence *fence)
        * batchbuffers coming after this waitsync will naturally not occur until
        * the previous one is done.
        */
+      break;
+   case BRW_FENCE_TYPE_SYNC_FD:
+      assert(fence->sync_fd != -1);
+
+      /* The user wants explicit synchronization, so give them what they want. */
+      if (!brw_fence_insert(brw, fence)) {
+         /* FIXME: There exists no way yet to report an error here. If an error
+          * occurs, continue silently and hope for the best.
+          */
+      }
       break;
    }
 }
@@ -345,12 +448,76 @@ brw_dri_server_wait_sync(__DRIcontext *ctx, void *_fence, unsigned flags)
    brw_fence_server_wait(fence->brw, fence);
 }
 
+static unsigned
+brw_dri_get_capabilities(__DRIscreen *dri_screen)
+{
+   struct intel_screen *screen = dri_screen->driverPrivate;
+   unsigned caps = 0;
+
+   if (screen->has_exec_fence)
+      caps |=  __DRI_FENCE_CAP_NATIVE_FD;
+
+   return caps;
+}
+
+static void *
+brw_dri_create_fence_fd(__DRIcontext *dri_ctx, int fd)
+{
+   struct brw_context *brw = dri_ctx->driverPrivate;
+   struct brw_fence *fence;
+
+   assert(brw->screen->has_exec_fence);
+
+   fence = calloc(1, sizeof(*fence));
+   if (!fence)
+      return NULL;
+
+   brw_fence_init(brw, fence, BRW_FENCE_TYPE_SYNC_FD);
+
+   if (fd != -1) {
+      /* Wrap an existing sync fd */
+      fence->sync_fd = dup(fd);
+      if (fence->sync_fd == -1) {
+         goto fail;
+      }
+   }
+
+   if (!brw_fence_insert_locked(brw, fence))
+      goto fail;
+
+   return fence;
+
+fail:
+   brw_fence_finish(fence);
+   free(fence);
+   return NULL;
+}
+
+static int
+brw_dri_get_fence_fd(__DRIscreen *dri_screen, void *_fence)
+{
+   struct brw_fence *fence = _fence;
+
+   assert(fence->type == BRW_FENCE_TYPE_SYNC_FD);
+
+   /* There is no need to lock because the sync fd is guaranteed to exist. Why?
+    * Because we always flush the batch and create the sync fd during sync
+    * creation.
+    */
+   assert(fence->sync_fd != -1);
+
+   return dup(fence->sync_fd);
+}
+
 const __DRI2fenceExtension intelFenceExtension = {
-   .base = { __DRI2_FENCE, 1 },
+   .base = { __DRI2_FENCE, 2 },
 
    .create_fence = brw_dri_create_fence,
    .destroy_fence = brw_dri_destroy_fence,
    .client_wait_sync = brw_dri_client_wait_sync,
    .server_wait_sync = brw_dri_server_wait_sync,
    .get_fence_from_cl_event = NULL,
+   .get_capabilities = brw_dri_get_capabilities,
+   .create_fence_fd = brw_dri_create_fence_fd,
+   .get_fence_fd = brw_dri_get_fence_fd,
 };
