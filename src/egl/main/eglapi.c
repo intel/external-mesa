@@ -1610,7 +1610,8 @@ _eglCreateSync(_EGLDisplay *disp, EGLenum type, const EGLAttrib *attrib_list,
     * (i.e., eglGetCurrentContext returns EGL_NO_CONTEXT ), an EGL_BAD_MATCH
     * error is generated.
     */
-   if (!ctx && type == EGL_SYNC_FENCE_KHR)
+   if (!ctx &&
+       (type == EGL_SYNC_FENCE_KHR || type == EGL_SYNC_NATIVE_FENCE_ANDROID))
       RETURN_EGL_ERROR(disp, EGL_BAD_MATCH, EGL_NO_SYNC_KHR);
 
    /* return an error if the client API doesn't support GL_OES_EGL_sync */
