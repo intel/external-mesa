@@ -1,21 +1,21 @@
-From e0cf9acdfd46d18833cfcfea7055cce0298cb861 Mon Sep 17 00:00:00 2001
+From c666b63572c8d4f116fe7d10c57a20092a74c0c6 Mon Sep 17 00:00:00 2001
 From: Liu Zhiquan <zhiquan.liu@intel.com>
 Date: Mon, 7 Nov 2016 15:32:17 +0800
 Subject: [PATCH] Enable pbuffer to fix most deqp pbuffer testcases.
 
-TODO: support EGL_SWAP_BEHAVIOR_PRESERVED_BIT for
-window surface.
+mesa android path didn't support pbuffer, so add pbuffer
+support to fix most deqp and cts pbuffer test cases fail;
+add support front buffer and single buffer config;
 
 Bug ID: https://github.com/android-ia/device-androidia/issues/6
 
-Test: deqp
+test:[DEQP,EGL]all deqp pbuffer case passed.
 
 Signed-off-by: Liu Zhiquan <zhiquan.liu@intel.com>
 ---
  src/egl/drivers/dri2/egl_dri2.h         |   3 +-
- src/egl/drivers/dri2/platform_android.c | 183 +++++++++++++++++++++++---------
- src/egl/main/eglsurface.c               |   6 ++
- 3 files changed, 143 insertions(+), 49 deletions(-)
+ src/egl/drivers/dri2/platform_android.c | 176 +++++++++++++++++++++++---------
+ 2 files changed, 131 insertions(+), 48 deletions(-)
 
 diff --git a/src/egl/drivers/dri2/egl_dri2.h b/src/egl/drivers/dri2/egl_dri2.h
 index 3add32e..f3d09dc 100644
@@ -32,7 +32,7 @@ index 3add32e..f3d09dc 100644
     /* EGL-owned buffers */
     __DRIbuffer           *local_buffers[__DRI_BUFFER_COUNT];
 diff --git a/src/egl/drivers/dri2/platform_android.c b/src/egl/drivers/dri2/platform_android.c
-index ec52a02..6b4f22f 100644
+index ec52a02..3c69fd2 100644
 --- a/src/egl/drivers/dri2/platform_android.c
 +++ b/src/egl/drivers/dri2/platform_android.c
 @@ -204,9 +204,9 @@ droid_window_enqueue_buffer(_EGLDisplay *disp, struct dri2_egl_surface *dri2_sur
@@ -264,17 +264,9 @@ index ec52a02..6b4f22f 100644
        images->image_mask |= __DRI_IMAGE_BUFFER_BACK;
     }
  
-@@ -773,16 +863,13 @@ droid_add_configs_for_visuals(_EGLDriver *drv, _EGLDisplay *dpy)
- 
-    count = 0;
+@@ -775,14 +865,6 @@ droid_add_configs_for_visuals(_EGLDriver *drv, _EGLDisplay *dpy)
     for (i = 0; dri2_dpy->driver_configs[i]; i++) {
--      const EGLint surface_type = EGL_WINDOW_BIT | EGL_PBUFFER_BIT;
-+      /* Current window surface implementation does not support EGL_SWAP_BEHAVIOR_PRESERVED_BIT,
-+       * while pbuffer default supports EGL_SWAP_BEHAVIOR_PRESERVED_BIT,
-+       * in order to enable pbuffer, we added EGL_SWAP_BEHAVIOR_PRESERVED_BIT,
-+       * TODO: support EGL_SWAP_BEHAVIOR_PRESERVED_BIT for window surface.
-+       */
-+      const EGLint surface_type = EGL_WINDOW_BIT | EGL_PBUFFER_BIT | EGL_SWAP_BEHAVIOR_PRESERVED_BIT;
+       const EGLint surface_type = EGL_WINDOW_BIT | EGL_PBUFFER_BIT;
        struct dri2_egl_config *dri2_conf;
 -      unsigned int double_buffered = 0;
 -
@@ -287,23 +279,6 @@ index ec52a02..6b4f22f 100644
  
        for (j = 0; j < ARRAY_SIZE(visuals); j++) {
           config_attrs[1] = visuals[j].format;
-diff --git a/src/egl/main/eglsurface.c b/src/egl/main/eglsurface.c
-index 8e56919..793e77e 100644
---- a/src/egl/main/eglsurface.c
-+++ b/src/egl/main/eglsurface.c
-@@ -463,6 +463,12 @@ _eglSurfaceAttrib(_EGLDriver *drv, _EGLDisplay *dpy, _EGLSurface *surface,
-       case EGL_BUFFER_DESTROYED:
-          break;
-       case EGL_BUFFER_PRESERVED:
-+#ifdef HAVE_ANDROID_PLATFORM
-+         if (surface->Type == EGL_WINDOW_BIT) {
-+            err = EGL_BAD_ATTRIBUTE;
-+            break;
-+         }
-+#endif
-          confval = surface->Config->SurfaceType;
-          if (!(confval & EGL_SWAP_BEHAVIOR_PRESERVED_BIT))
-             err = EGL_BAD_MATCH;
 -- 
 1.9.1
 
