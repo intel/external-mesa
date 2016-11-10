@@ -1,14 +1,13 @@
 From c666b63572c8d4f116fe7d10c57a20092a74c0c6 Mon Sep 17 00:00:00 2001
 From: Liu Zhiquan <zhiquan.liu@intel.com>
 Date: Mon, 7 Nov 2016 15:32:17 +0800
-Subject: [PATCH] Enable pbuffer to fix most deqp pbuffer testcases.
+Subject: EGL/android: pbuffer implementation.
 
-mesa android path didn't support pbuffer, so add pbuffer
-support to fix most deqp and cts pbuffer test cases fail;
-add support front buffer and single buffer config;
+mesa android path didn't support pbuffer, so add pbuffer support to
+fix most deqp and cts pbuffer test cases fail;
+add support of front buffer and single buffer config.
 
-Bug ID: https://github.com/android-ia/device-androidia/issues/6
-
+Test status: android CTS EGL pbuffer test can run without native crash.
 test:[DEQP,EGL]all deqp pbuffer case passed.
 
 Signed-off-by: Liu Zhiquan <zhiquan.liu@intel.com>
