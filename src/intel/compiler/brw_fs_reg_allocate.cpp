@@ -613,7 +613,7 @@ fs_visitor::assign_regs(bool allow_spilling, bool spill_all)
           * We could just do "something high".  Instead, we just pick the
           * highest register that works.
           */
-         if (inst->eot) {
+         if (inst->eot && inst->src[0].file == VGRF) {
             int size = alloc.sizes[inst->src[0].nr];
             int reg = compiler->fs_reg_sets[rsi].class_to_ra_reg_range[size] - 1;
 
