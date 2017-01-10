@@ -4210,12 +4210,20 @@ lower_fb_write_logical_send(const fs_builder &bld, fs_inst *inst,
 static void
 lower_fb_read_logical_send(const fs_builder &bld, fs_inst *inst)
 {
-   const fs_builder &ubld = bld.exec_all();
+   const fs_builder &ubld = bld.exec_all().group(8, 0);
    const unsigned length = 2;
-   const fs_reg header = ubld.group(8, 0).vgrf(BRW_REGISTER_TYPE_UD, length);
+   const fs_reg header = ubld.vgrf(BRW_REGISTER_TYPE_UD, length);
 
-   ubld.group(16, 0)
-       .MOV(header, retype(brw_vec8_grf(0, 0), BRW_REGISTER_TYPE_UD));
+   if (bld.group() / 16 == 1) {
+      const fs_reg header_sources[] = {
+         retype(brw_vec8_grf(0, 0), BRW_REGISTER_TYPE_UD),
+         retype(brw_vec8_grf(2, 0), BRW_REGISTER_TYPE_UD)
+      };
+      ubld.LOAD_PAYLOAD(header, header_sources, ARRAY_SIZE(header_sources), 0);
+   } else {
+      ubld.group(16, 0).MOV(header, retype(brw_vec8_grf(0, 0),
+                                           BRW_REGISTER_TYPE_UD));
+   }
 
    inst->resize_sources(1);
    inst->src[0] = header;
