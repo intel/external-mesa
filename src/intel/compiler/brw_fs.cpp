@@ -1232,29 +1232,16 @@ fs_visitor::emit_samplepos_setup()
     * The X, Y sample positions come in as bytes in  thread payload. So, read
     * the positions using vstride=16, width=8, hstride=2.
     */
-   struct brw_reg sample_pos_reg =
-      stride(retype(brw_vec1_grf(payload.sample_pos_reg, 0),
-                    BRW_REGISTER_TYPE_B), 16, 8, 2);
+   const fs_reg sample_pos_reg = retype(brw_vec1_grf(payload.sample_pos_reg, 0),
+                                        BRW_REGISTER_TYPE_W);
 
-   if (dispatch_width == 8) {
-      abld.MOV(int_sample_x, fs_reg(sample_pos_reg));
-   } else {
-      abld.half(0).MOV(half(int_sample_x, 0), fs_reg(sample_pos_reg));
-      abld.half(1).MOV(half(int_sample_x, 1),
-                       fs_reg(suboffset(sample_pos_reg, 16)));
-   }
    /* Compute gl_SamplePosition.x */
+   abld.MOV(int_sample_x, subscript(sample_pos_reg, BRW_REGISTER_TYPE_B, 0));
    compute_sample_position(pos, int_sample_x);
-   pos = offset(pos, abld, 1);
-   if (dispatch_width == 8) {
-      abld.MOV(int_sample_y, fs_reg(suboffset(sample_pos_reg, 1)));
-   } else {
-      abld.half(0).MOV(half(int_sample_y, 0),
-                       fs_reg(suboffset(sample_pos_reg, 1)));
-      abld.half(1).MOV(half(int_sample_y, 1),
-                       fs_reg(suboffset(sample_pos_reg, 17)));
-   }
+
    /* Compute gl_SamplePosition.y */
+   pos = offset(pos, abld, 1);
+   abld.MOV(int_sample_y, subscript(sample_pos_reg, BRW_REGISTER_TYPE_B, 1));
    compute_sample_position(pos, int_sample_y);
    return reg;
 }
