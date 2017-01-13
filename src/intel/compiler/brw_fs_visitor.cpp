@@ -151,19 +151,22 @@ fs_visitor::interp_reg(int location, int channel)
 void
 fs_visitor::emit_interpolation_setup_gen4()
 {
-   struct brw_reg g1_uw = retype(brw_vec1_grf(1, 0), BRW_REGISTER_TYPE_UW);
-
    fs_builder abld = bld.annotate("compute pixel centers");
-   this->pixel_x = vgrf(glsl_type::uint_type);
-   this->pixel_y = vgrf(glsl_type::uint_type);
-   this->pixel_x.type = BRW_REGISTER_TYPE_UW;
-   this->pixel_y.type = BRW_REGISTER_TYPE_UW;
-   abld.ADD(this->pixel_x,
-            fs_reg(stride(suboffset(g1_uw, 4), 2, 4, 0)),
-            fs_reg(brw_imm_v(0x10101010)));
-   abld.ADD(this->pixel_y,
-            fs_reg(stride(suboffset(g1_uw, 5), 2, 4, 0)),
-            fs_reg(brw_imm_v(0x11001100)));
+   this->pixel_x = abld.vgrf(BRW_REGISTER_TYPE_UW);
+   this->pixel_y = abld.vgrf(BRW_REGISTER_TYPE_UW);
+
+   for (unsigned i = 0; i < DIV_ROUND_UP(dispatch_width, 16); i++) {
+      const fs_builder hbld = abld.group(MIN2(dispatch_width, 16), i);
+      const fs_reg subspan_coords =
+         stride(brw_vec1_grf(payload.subspan_coord_reg[i], 2), 1, 4, 0);
+
+      hbld.ADD(offset(this->pixel_x, hbld, i),
+               subscript(subspan_coords, BRW_REGISTER_TYPE_UW, 0),
+               fs_reg(brw_imm_v(0x10101010)));
+      hbld.ADD(offset(this->pixel_y, hbld, i),
+               subscript(subspan_coords, BRW_REGISTER_TYPE_UW, 1),
+               fs_reg(brw_imm_v(0x11001100)));
+   }
 
    abld = bld.annotate("compute pixel deltas from v0");
 
@@ -173,16 +176,13 @@ fs_visitor::emit_interpolation_setup_gen4()
    const fs_reg xstart(negate(brw_vec1_grf(1, 0)));
    const fs_reg ystart(negate(brw_vec1_grf(1, 1)));
 
-   if (devinfo->has_pln && dispatch_width == 16) {
-      for (unsigned i = 0; i < 2; i++) {
-         abld.half(i).ADD(half(offset(delta_xy, abld, i), 0),
-                          half(this->pixel_x, i), xstart);
-         abld.half(i).ADD(half(offset(delta_xy, abld, i), 1),
-                          half(this->pixel_y, i), ystart);
-      }
-   } else {
-      abld.ADD(offset(delta_xy, abld, 0), this->pixel_x, xstart);
-      abld.ADD(offset(delta_xy, abld, 1), this->pixel_y, ystart);
+   for (unsigned i = 0; i < dispatch_width / 8; i++) {
+      const fs_builder hbld = abld.group(8, i);
+      const unsigned j = dispatch_width == 32 ? (i & 2) >> 1 | (i & 1) << 1 : i;
+      hbld.ADD(offset(delta_xy, hbld, 2 * i), offset(pixel_x, hbld, j),
+               xstart);
+      hbld.ADD(offset(delta_xy, hbld, 2 * i + 1), offset(pixel_y, hbld, j),
+               ystart);
    }
 
    abld = bld.annotate("compute pos.w and 1/pos.w");
