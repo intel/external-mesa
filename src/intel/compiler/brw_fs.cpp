@@ -835,6 +835,15 @@ fs_inst::size_read(int arg) const
 {
    switch (opcode) {
    case FS_OPCODE_FB_WRITE:
+   case FS_OPCODE_REP_FB_WRITE:
+      if (arg == 0) {
+         if (base_mrf >= 0)
+            return (src[0].file == BAD_FILE ? 0 : 2) * REG_SIZE;
+         else
+            return mlen * REG_SIZE;
+      }
+      break;
+
    case FS_OPCODE_FB_READ:
    case SHADER_OPCODE_URB_WRITE_SIMD8:
    case SHADER_OPCODE_URB_WRITE_SIMD8_PER_SLOT:
