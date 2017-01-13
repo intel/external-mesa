@@ -281,7 +281,6 @@ is_uniform(const fs_reg &reg)
 static inline fs_reg
 half(const fs_reg &reg, unsigned idx)
 {
-   assert(idx < 2);
    return horiz_offset(reg, 8 * idx);
 }
 
