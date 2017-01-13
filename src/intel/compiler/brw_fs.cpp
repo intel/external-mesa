@@ -3994,6 +3994,7 @@ lower_fb_write_logical_send(const fs_builder &bld, fs_inst *inst,
    }
 
    if (payload.aa_dest_stencil_reg) {
+      assert(inst->group < 16);
       sources[length] = fs_reg(VGRF, bld.shader->alloc.allocate(1));
       bld.group(8, 0).exec_all().annotate("FB write stencil/AA alpha")
          .MOV(sources[length],
@@ -4017,7 +4018,7 @@ lower_fb_write_logical_send(const fs_builder &bld, fs_inst *inst,
 
       bld.exec_all().annotate("FB write oMask")
          .MOV(horiz_offset(retype(sources[length], BRW_REGISTER_TYPE_UW),
-                           inst->group),
+                           inst->group % 16),
               sample_mask);
       length++;
    }
@@ -4062,7 +4063,7 @@ lower_fb_write_logical_send(const fs_builder &bld, fs_inst *inst,
 
    if (src_stencil.file != BAD_FILE) {
       assert(devinfo->gen >= 9);
-      assert(bld.dispatch_width() != 16);
+      assert(bld.dispatch_width() == 8);
 
       /* XXX: src_stencil is only available on gen9+. dst_depth is never
        * available on gen9+. As such it's impossible to have both enabled at the
