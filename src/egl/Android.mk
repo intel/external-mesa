@@ -55,9 +55,9 @@ LOCAL_SHARED_LIBRARIES := \
 	libhardware \
 	liblog \
 	libcutils \
-	libgralloc_drm \
 
 ifeq ($(ENABLE_FLINK_SUPPORT),1)
+LOCAL_SHARED_LIBRARIES += libgralloc_drm
 LOCAL_CFLAGS += -DHAS_GRALLOC_DRM_HEADERS
 endif
 
