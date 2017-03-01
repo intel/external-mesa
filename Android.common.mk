@@ -116,6 +116,9 @@ else
   LOCAL_CFLAGS += -DDEFAULT_DRIVER_DIR=\"/system/lib/$(MESA_DRI_MODULE_REL_PATH)\"
 endif
 
+# Enable VK_ANDROID_native_buffer
+LOCAL_CFLAGS += -DVK_USE_PLATFORM_ANDROID_KHR
+
 # uncomment to keep the debug symbols
 #LOCAL_STRIP_MODULE := false
 

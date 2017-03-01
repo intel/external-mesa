@@ -259,6 +259,15 @@ static const VkExtensionProperties device_extensions[] = {
       .extensionName = VK_KHR_MAINTENANCE1_EXTENSION_NAME,
       .specVersion = 1,
    },
+#ifdef VK_USE_PLATFORM_ANDROID_KHR
+   {
+      // Refer https://source.android.com/devices/graphics/implement-vulkan.html
+      // "Window System Integration (WSI) extensions are exported by the loader
+      //  and primarily implemented in it rather than the driver."
+      .extensionName = "VK_ANDROID_native_buffer",
+      .specVersion = 1,
+   },
+#endif
    {
       .extensionName = VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME,
       .specVersion = 1,
