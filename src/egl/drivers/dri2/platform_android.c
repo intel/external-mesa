@@ -51,6 +51,13 @@ struct droid_yuv_format {
    int fourcc; /* __DRI_IMAGE_FOURCC_ */
 };
 
+/* This enumeration can be deleted if Android defined it in
+ * system/core/include/system/graphics.h
+ */
+enum {
+   HAL_PIXEL_FORMAT_NV12 = 0x102,
+};
+
 /* The following table is used to look up a DRI image FourCC based
  * on native format and information contained in android_ycbcr struct. */
 static const struct droid_yuv_format droid_yuv_formats[] = {
@@ -59,6 +66,7 @@ static const struct droid_yuv_format droid_yuv_formats[] = {
    { HAL_PIXEL_FORMAT_YCbCr_420_888,   0, 1, __DRI_IMAGE_FOURCC_YUV420 },
    { HAL_PIXEL_FORMAT_YCbCr_420_888,   1, 1, __DRI_IMAGE_FOURCC_YVU420 },
    { HAL_PIXEL_FORMAT_YV12,            1, 1, __DRI_IMAGE_FOURCC_YVU420 },
+   { HAL_PIXEL_FORMAT_NV12,            0, 2, __DRI_IMAGE_FOURCC_NV12 },
 };
 
 static int
