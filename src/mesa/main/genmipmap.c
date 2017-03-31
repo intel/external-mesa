@@ -96,6 +96,9 @@ _mesa_is_valid_generate_texture_mipmap_internalformat(struct gl_context *ctx,
              (_mesa_is_es3_color_renderable(internalformat) &&
               _mesa_is_es3_texture_filterable(ctx, internalformat));
    }
+   else if (!_mesa_is_desktop_gl(ctx) && ctx->Extensions.EXT_sRGB && (internalformat == GL_SRGB)) {
+      return GL_INVALID_OPERATION;
+   }
 
    return (!_mesa_is_enum_format_integer(internalformat) &&
            !_mesa_is_depthstencil_format(internalformat) &&
