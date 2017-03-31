@@ -268,7 +268,7 @@ anv_block_pool_init(struct anv_block_pool *pool,
     * with pages until we either map and fault on one of them or we use
     * userptr and send a chunk of it off to the GPU.
     */
-   if (ftruncate(pool->fd, BLOCK_POOL_MEMFD_SIZE) == -1) {
+   if (ftruncate(pool->fd, BLOCK_POOL_MEMFD_SIZE - 1) == -1) {
       result = vk_error(VK_ERROR_INITIALIZATION_FAILED);
       goto fail_fd;
    }
