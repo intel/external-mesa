@@ -109,6 +109,7 @@ intelInitExtensions(struct gl_context *ctx)
    ctx->Extensions.EXT_texture_shared_exponent = true;
    ctx->Extensions.EXT_texture_snorm = true;
    ctx->Extensions.EXT_texture_sRGB = true;
+   ctx->Extensions.EXT_sRGB = true;
    ctx->Extensions.EXT_texture_sRGB_decode = true;
    ctx->Extensions.EXT_texture_swizzle = true;
    ctx->Extensions.EXT_vertex_array_bgra = true;
