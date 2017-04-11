@@ -952,6 +952,19 @@ brwCreateContext(gl_api api,
          intelDestroyContext(driContextPriv);
          return false;
       }
+
+      int hw_priority = 0;
+      switch (priority) {
+      case __DRI_CTX_PRIORITY_LOW: hw_priority = -1023/2; break;
+      case __DRI_CTX_PRIORITY_HIGH: hw_priority = 1023/2; break;
+      }
+      if (hw_priority &&
+          brw_hw_context_set_priority(brw->bufmgr, brw->hw_ctx, hw_priority)) {
+         fprintf(stderr, "Failed to set priority [%d] for hardware context.\n",
+                 hw_priority);
+         intelDestroyContext(driContextPriv);
+         return false;
+      }
    }
 
    if (brw_init_pipe_control(brw, devinfo)) {
