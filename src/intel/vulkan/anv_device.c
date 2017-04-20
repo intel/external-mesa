@@ -105,7 +105,7 @@ anv_device_get_cache_uuid(void *uuid, uint16_t pci_id)
       return false;
 
    unsigned build_id_len = build_id_length(note);
-   if (build_id_len < 20) /* It should be a SHA-1 */
+   if (build_id_len < VK_UUID_SIZE) /* It should be a SHA-1 */
       return false;
 
    struct mesa_sha1 sha1_ctx;
