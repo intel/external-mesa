@@ -45,7 +45,9 @@ LOCAL_CFLAGS := \
 
 LOCAL_C_INCLUDES := \
 	$(MESA_TOP)/src/egl/main \
-	$(MESA_TOP)/src/egl/drivers/dri2
+	$(MESA_TOP)/src/egl/drivers/dri2 \
+	frameworks/native/libs/nativewindow/include \
+	frameworks/native/libs/arect/include
 
 LOCAL_STATIC_LIBRARIES := \
 	libmesa_loader
