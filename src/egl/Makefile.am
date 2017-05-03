@@ -82,7 +82,7 @@ dri2_backend_FILES += drivers/dri2/platform_surfaceless.c
 endif
 
 if HAVE_EGL_PLATFORM_ANDROID
-libEGL_la_LIBADD += -lcutils -lhardware -lsync
+libEGL_la_LIBADD = -lcutils -lhardware -lsync
 libEGL_la_LIBADD += $(DRM_GRALLOC_LIBS)
 AM_CFLAGS += $(DRM_GRALLOC_CFLAGS)
 AM_CFLAGS += -DHAVE_ANDROID_PLATFORM
