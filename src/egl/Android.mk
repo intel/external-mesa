@@ -41,7 +41,6 @@ LOCAL_SRC_FILES := \
 LOCAL_CFLAGS := \
 	-D_EGL_NATIVE_PLATFORM=_EGL_PLATFORM_ANDROID \
 	-D_EGL_BUILT_IN_DRIVER_DRI2 \
-	-DHAS_GRALLOC_DRM_HEADERS \
 	-DHAVE_ANDROID_PLATFORM
 
 LOCAL_C_INCLUDES := \
@@ -58,6 +57,10 @@ LOCAL_SHARED_LIBRARIES := \
 	libcutils \
 	libgralloc_drm \
 	libsync
+
+ifeq ($(ENABLE_FLINK_SUPPORT),1)
+LOCAL_CFLAGS += -DHAS_GRALLOC_DRM_HEADERS
+endif
 
 # This controls enabling building of driver libraries
 ifneq ($(HAVE_I915_DRI),)
