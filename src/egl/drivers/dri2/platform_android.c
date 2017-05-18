@@ -887,6 +887,7 @@ droid_create_image_khr(_EGLDriver *drv, _EGLDisplay *disp,
 		       EGLClientBuffer buffer, const EGLint *attr_list)
 {
    switch (target) {
+   case EGL_NATIVE_PIXMAP_KHR:
    case EGL_NATIVE_BUFFER_ANDROID:
       return dri2_create_image_android_native_buffer(disp, ctx,
             (struct ANativeWindowBuffer *) buffer);
@@ -1198,7 +1199,7 @@ dri2_initialize_android(_EGLDriver *drv, _EGLDisplay *dpy)
    dpy->Extensions.ANDROID_image_native_buffer = EGL_TRUE;
    dpy->Extensions.ANDROID_recordable = EGL_TRUE;
    dpy->Extensions.EXT_buffer_age = EGL_TRUE;
-
+   dpy->Extensions.KHR_image_pixmap = EGL_TRUE;
    /* Fill vtbl last to prevent accidentally calling virtual function during
     * initialization.
     */
