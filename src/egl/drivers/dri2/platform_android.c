@@ -55,6 +55,7 @@ struct droid_yuv_format {
  * on native format and information contained in android_ycbcr struct. */
 static const struct droid_yuv_format droid_yuv_formats[] = {
    /* Native format, YCrCb, Chroma step, DRI image FourCC */
+   { HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED,	0, 2, __DRI_IMAGE_FOURCC_NV12 },
    { HAL_PIXEL_FORMAT_YCbCr_420_888,   0, 2, __DRI_IMAGE_FOURCC_NV12 },
    { HAL_PIXEL_FORMAT_YCbCr_420_888,   0, 1, __DRI_IMAGE_FOURCC_YUV420 },
    { HAL_PIXEL_FORMAT_YCbCr_420_888,   1, 1, __DRI_IMAGE_FOURCC_YVU420 },
@@ -117,6 +118,7 @@ static int get_fourcc(int native)
    case HAL_PIXEL_FORMAT_BGRA_8888: return __DRI_IMAGE_FOURCC_ARGB8888;
    case HAL_PIXEL_FORMAT_RGBA_8888: return __DRI_IMAGE_FOURCC_ABGR8888;
    case HAL_PIXEL_FORMAT_RGBX_8888: return __DRI_IMAGE_FOURCC_XBGR8888;
+   case HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED: return __DRI_IMAGE_FOURCC_NV12;
    default:
       _eglLog(_EGL_WARNING, "unsupported native buffer format 0x%x", native);
    }
@@ -130,6 +132,7 @@ static int get_format(int format)
    case HAL_PIXEL_FORMAT_RGB_565:   return __DRI_IMAGE_FORMAT_RGB565;
    case HAL_PIXEL_FORMAT_RGBA_8888: return __DRI_IMAGE_FORMAT_ABGR8888;
    case HAL_PIXEL_FORMAT_RGBX_8888: return __DRI_IMAGE_FORMAT_XBGR8888;
+   case HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED: return __DRI_IMAGE_FORMAT_ARGB8888;
    default:
       _eglLog(_EGL_WARNING, "unsupported native buffer format 0x%x", format);
    }
