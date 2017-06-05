@@ -41,6 +41,8 @@
 
 #define ALIGN(val, align)	(((val) + (align) - 1) & ~((align) - 1))
 
+#define GRALLOC_DRM_GET_FORMAT   1
+
 struct droid_yuv_format {
    /* Lookup keys */
    int native; /* HAL_PIXEL_FORMAT_ */
@@ -220,6 +222,28 @@ droid_window_dequeue_buffer(struct dri2_egl_surface *dri2_surf)
    }
 
    return EGL_TRUE;
+}
+
+static int
+droid_resolve_format(struct dri2_egl_display *dri2_dpy,
+                     struct ANativeWindowBuffer *buf)
+{
+   int format;
+   int err;
+
+   if (buf->format != HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED)
+      return buf->format;
+
+   if (!dri2_dpy->gralloc->perform)
+      return -1;
+
+   err = dri2_dpy->gralloc->perform(dri2_dpy->gralloc,
+                                    GRALLOC_DRM_GET_FORMAT,
+                                    buf->handle, &format);
+   if (err)
+      return -1;
+
+   return format;
 }
 
 static EGLBoolean
@@ -668,6 +692,12 @@ droid_create_image_from_prime_fd_yuv(_EGLDisplay *disp, _EGLContext *ctx,
    int fourcc;
    int ret;
 
+   int format = droid_resolve_format(dri2_dpy, buf);
+   if (format < 0) {
+      _eglError(EGL_BAD_PARAMETER, "eglCreateEGLImageKHR");
+      return NULL;
+   }
+
    if (!dri2_dpy->gralloc->lock_ycbcr) {
       _eglLog(_EGL_WARNING, "Gralloc does not support lock_ycbcr");
       return NULL;
@@ -705,10 +735,10 @@ droid_create_image_from_prime_fd_yuv(_EGLDisplay *disp, _EGLContext *ctx,
 
    /* .chroma_step is the byte distance between the same chroma channel
     * values of subsequent pixels, assumed to be the same for Cb and Cr. */
-   fourcc = get_fourcc_yuv(buf->format, is_ycrcb, ycbcr.chroma_step);
+   fourcc = get_fourcc_yuv(format, is_ycrcb, ycbcr.chroma_step);
    if (fourcc == -1) {
       _eglLog(_EGL_WARNING, "unsupported YUV format, native = %x, is_ycrcb = %d, chroma_step = %d",
-              buf->format, is_ycrcb, ycbcr.chroma_step);
+              format, is_ycrcb, ycbcr.chroma_step);
       return NULL;
    }
 
@@ -754,18 +784,25 @@ static _EGLImage *
 droid_create_image_from_prime_fd(_EGLDisplay *disp, _EGLContext *ctx,
                                  struct ANativeWindowBuffer *buf, int fd)
 {
+   struct dri2_egl_display *dri2_dpy = dri2_egl_display(disp);
    unsigned int pitch;
 
-   if (is_yuv(buf->format))
+   int format = droid_resolve_format(dri2_dpy, buf);
+   if (format < 0) {
+      _eglLog(_EGL_WARNING, "Could not resolve buffer format");
+      return NULL;
+   }
+
+   if (is_yuv(format))
       return droid_create_image_from_prime_fd_yuv(disp, ctx, buf, fd);
 
-   const int fourcc = get_fourcc(buf->format);
+   const int fourcc = get_fourcc(format);
    if (fourcc == -1) {
       _eglError(EGL_BAD_PARAMETER, "eglCreateEGLImageKHR");
       return NULL;
    }
 
-   pitch = buf->stride * get_format_bpp(buf->format);
+   pitch = buf->stride * get_format_bpp(format);
    if (pitch == 0) {
       _eglError(EGL_BAD_PARAMETER, "eglCreateEGLImageKHR");
       return NULL;
