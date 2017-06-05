@@ -662,13 +662,15 @@ droid_create_image_from_prime_fd_yuv(_EGLDisplay *disp, _EGLContext *ctx,
    int is_ycrcb;
    int fourcc;
    int ret;
-
+   return 0;
+#ifdef TENTH
    if (!dri2_dpy->gralloc->lock_ycbcr) {
       _eglLog(_EGL_WARNING, "Gralloc does not support lock_ycbcr");
       return NULL;
    }
 
    memset(&ycbcr, 0, sizeof(ycbcr));
+
    ret = dri2_dpy->gralloc->lock_ycbcr(dri2_dpy->gralloc, buf->handle,
                                        0, 0, 0, 0, 0, &ycbcr);
    if (ret) {
@@ -743,6 +745,7 @@ droid_create_image_from_prime_fd_yuv(_EGLDisplay *disp, _EGLContext *ctx,
 
       return dri2_create_image_dma_buf(disp, ctx, NULL, attr_list_3plane);
    }
+#endif
 }
 
 static _EGLImage *
@@ -1033,23 +1036,6 @@ droid_add_configs_for_visuals(_EGLDriver *drv, _EGLDisplay *dpy)
    return (count != 0);
 }
 
-static int
-droid_open_device(struct dri2_egl_display *dri2_dpy)
-{
-   int fd = -1, err = -EINVAL;
-
-   if (dri2_dpy->gralloc->perform)
-         err = dri2_dpy->gralloc->perform(dri2_dpy->gralloc,
-                                          GRALLOC_MODULE_PERFORM_GET_DRM_FD,
-                                          &fd);
-   if (err || fd < 0) {
-      _eglLog(_EGL_DEBUG, "fail to get drm fd");
-      fd = -1;
-   }
-
-   return (fd >= 0) ? fcntl(fd, F_DUPFD_CLOEXEC, 3) : -1;
-}
-
 #define DRM_RENDER_DEV_NAME  "%s/renderD%d"
 
 static int
@@ -1161,21 +1147,9 @@ dri2_initialize_android(_EGLDriver *drv, _EGLDisplay *dpy)
 
    dpy->DriverData = (void *) dri2_dpy;
 
-   dri2_dpy->fd = droid_open_device(dri2_dpy);
-   if (dri2_dpy->fd >= 0) {
-      dri2_dpy->driver_name = loader_get_driver_for_fd(dri2_dpy->fd);
-      if (dri2_dpy->driver_name == NULL) {
-         err = "DRI2: failed to get driver name";
-         goto cleanup_device;
-      }
-
-      if (!dri2_load_driver(dpy)) {
-         err = "DRI2: failed to load driver";
-         goto cleanup_driver_name;
-      }
-   } else if (droid_probe_device(dpy) < 0) {
-      err = "DRI2: failed to open device";
-      goto cleanup_display;
+   if (droid_probe_device(dpy) < 0) {
+	 err = "DRI2: failed to open device";
+	 goto cleanup_display;
    }
 
    dri2_dpy->is_render_node = drmGetNodeTypeFromFd(dri2_dpy->fd) == DRM_NODE_RENDER;

@@ -58,7 +58,7 @@
 
 #include <system/window.h>
 #include "platform_android_gralloc_drm.h"
-#include <hardware/gralloc.h>
+#include <hardware/gralloc1.h>
 
 #endif /* HAVE_ANDROID_PLATFORM */
 
@@ -213,7 +213,7 @@ struct dri2_egl_display
 #endif
 
 #ifdef HAVE_ANDROID_PLATFORM
-   const gralloc_module_t *gralloc;
+   const hw_module_t *gralloc;
 #endif
 
    int                       is_render_node;
