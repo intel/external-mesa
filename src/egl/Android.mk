@@ -36,7 +36,8 @@ include $(CLEAR_VARS)
 LOCAL_SRC_FILES := \
 	$(LIBEGL_C_FILES) \
 	$(dri2_backend_core_FILES) \
-	drivers/dri2/platform_android.c
+	drivers/dri2/platform_android_gralloc.cpp\
+	drivers/dri2/platform_android.c 
 
 LOCAL_CFLAGS := \
 	-D_EGL_NATIVE_PLATFORM=_EGL_PLATFORM_ANDROID \
