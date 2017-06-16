@@ -222,6 +222,7 @@ struct dri2_egl_display
    uint16_t gralloc_version;
    gralloc1_device_t *gralloc1_dvc;
    GRALLOC1_PFN_LOCK_FLEX pfn_lockflex;
+   GRALLOC1_PFN_GET_FORMAT pfn_getFormat;
 #endif
 
    int                       is_render_node;
