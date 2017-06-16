@@ -228,24 +228,41 @@ static int
 droid_resolve_format(struct dri2_egl_display *dri2_dpy,
                      struct ANativeWindowBuffer *buf)
 {
-   int format;
-   int err;
+   int format = -1;
+   int ret;
 
    if (buf->format != HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED)
       return buf->format;
 
-   const gralloc_module_t *gralloc0;
-   gralloc0 = dri2_dpy->gralloc;
+   if(dri2_dpy->gralloc_version == HARDWARE_MODULE_API_VERSION(1, 0)) {
 
-   if (!gralloc0->perform)
-      return -1;
+     if (!dri2_dpy->pfn_getFormat) {
+        _eglLog(_EGL_WARNING, "Gralloc does not support getFormat");
+        return -1;
+     }
+     ret = dri2_dpy->pfn_getFormat(dri2_dpy->gralloc1_dvc, buf->handle,
+                                       &format);
+     if (ret) {
+        _eglLog(_EGL_WARNING, "gralloc->getFormat failed: %d", ret);
+        return -1;
+     }
+   } else {
 
-   err = gralloc0->perform(dri2_dpy->gralloc,
+     const gralloc_module_t *gralloc0;
+     gralloc0 = dri2_dpy->gralloc;
+
+     if (!gralloc0->perform) {
+       _eglLog(_EGL_WARNING, "gralloc->perform not supported");
+       return -1;
+     }
+     ret = gralloc0->perform(dri2_dpy->gralloc,
                                     GRALLOC_DRM_GET_FORMAT,
                                     buf->handle, &format);
-   if (err)
-      return -1;
-
+     if (ret){
+       _eglLog(_EGL_WARNING, "gralloc->perform failed with error: %d", ret);
+       return -1;
+     }
+   }
    return format;
 }
 
@@ -1321,6 +1338,9 @@ dri2_initialize_android(_EGLDriver *drv, _EGLDisplay *dpy)
 
         dri2_dpy->pfn_lockflex = (GRALLOC1_PFN_LOCK_FLEX)\
              dri2_dpy->gralloc1_dvc->getFunction(dri2_dpy->gralloc1_dvc, GRALLOC1_FUNCTION_LOCK_FLEX);
+
+        dri2_dpy->pfn_getFormat = (GRALLOC1_PFN_GET_FORMAT)\
+             dri2_dpy->gralloc1_dvc->getFunction(dri2_dpy->gralloc1_dvc, GRALLOC1_FUNCTION_GET_FORMAT);
       }
    }
 
