@@ -191,8 +191,16 @@ droid_window_dequeue_buffer(struct dri2_egl_surface *dri2_surf)
         *
         *    Waits indefinitely if timeout < 0.
         */
-        int timeout = -1;
-        sync_wait(fence_fd, timeout);
+        int timeout = 1000;
+        int err = sync_wait(fence_fd, timeout);
+        if (err < 0) {
+            _eglLog(_EGL_WARNING, "sync_wait timed out with an error: ", strerror(errno));
+            timeout = -1;
+            err = sync_wait(fence_fd, timeout);
+            if (err < 0) {
+                _eglLog(_EGL_WARNING, "sync_wait error: ", strerror(errno));
+            }
+        }
         close(fence_fd);
    }
 
