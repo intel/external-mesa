@@ -809,7 +809,7 @@ droid_create_image_from_prime_fd_yuv(_EGLDisplay *disp, _EGLContext *ctx,
      }
 
      ret = dri2_dpy->pfn_lockflex(dri2_dpy->gralloc1_dvc, buf->handle,
-                                       0, 0, &accessRegion, &outFlexLayout, 0);
+                                       0, 0, &accessRegion, &outFlexLayout, -1);
      if (ret) {
         _eglLog(_EGL_WARNING, "gralloc->lockflex failed: %d", ret);
         return NULL;
