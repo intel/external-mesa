@@ -819,7 +819,8 @@ droid_create_image_from_prime_fd_yuv(_EGLDisplay *disp, _EGLContext *ctx,
         _eglLog(_EGL_WARNING, "gralloc->lockflex failed: %d", ret);
         return NULL;
      }
-
+     int outReleaseFence = 0;
+     dri2_dpy->pfn_unlock(dri2_dpy->gralloc1_dvc, buf->handle, &outReleaseFence);
    } else {
 
      const gralloc_module_t *gralloc0;
@@ -1357,6 +1358,9 @@ dri2_initialize_android(_EGLDriver *drv, _EGLDisplay *dpy)
 
         dri2_dpy->pfn_getFormat = (GRALLOC1_PFN_GET_FORMAT)\
              dri2_dpy->gralloc1_dvc->getFunction(dri2_dpy->gralloc1_dvc, GRALLOC1_FUNCTION_GET_FORMAT);
+
+        dri2_dpy->pfn_unlock = (GRALLOC1_PFN_UNLOCK)\
+             dri2_dpy->gralloc1_dvc->getFunction(dri2_dpy->gralloc1_dvc, GRALLOC1_FUNCTION_UNLOCK);
       }
    }
 
