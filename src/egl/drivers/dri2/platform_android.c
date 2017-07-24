@@ -711,6 +711,7 @@ droid_swap_buffers(_EGLDriver *drv, _EGLDisplay *disp, _EGLSurface *draw)
    return EGL_TRUE;
 }
 
+#ifdef HAVE_GRALLOC1
 static int get_ycbcr_from_flexlayout(struct android_flex_layout *outFlexLayout, struct android_ycbcr *ycbcr)
 {
 
@@ -735,6 +736,7 @@ static int get_ycbcr_from_flexlayout(struct android_flex_layout *outFlexLayout, 
   }
   return 0;
 }
+#endif
 
 #if ANDROID_API_LEVEL >= 23
 static EGLBoolean
