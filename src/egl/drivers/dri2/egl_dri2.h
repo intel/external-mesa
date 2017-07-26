@@ -61,6 +61,7 @@ struct zwp_linux_dmabuf_v1;
 
 #include <system/window.h>
 #include "platform_android_gralloc_drm.h"
+#include <hardware/gralloc1.h>
 #include <hardware/gralloc.h>
 
 #endif /* HAVE_ANDROID_PLATFORM */
@@ -231,7 +232,10 @@ struct dri2_egl_display
 #endif
 
 #ifdef HAVE_ANDROID_PLATFORM
-   const gralloc_module_t *gralloc;
+   const hw_module_t *gralloc;
+   uint16_t gralloc_version;
+   gralloc1_device_t *gralloc1_dvc;
+   GRALLOC1_PFN_LOCK_FLEX pfn_lockflex;
 #endif
 
    bool                      is_render_node;
