@@ -64,6 +64,10 @@ LOCAL_SHARED_LIBRARIES += libgralloc_drm
 LOCAL_CFLAGS += -DHAS_GRALLOC_DRM_HEADERS
 endif
 
+ifeq ($(strip $(BOARD_USES_GRALLOC1)),true)
+LOCAL_CFLAGS += -DHAVE_GRALLOC1
+endif
+
 # This controls enabling building of driver libraries
 ifneq ($(HAVE_I915_DRI),)
 LOCAL_REQUIRED_MODULES += i915_dri
