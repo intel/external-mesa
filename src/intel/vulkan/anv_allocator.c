@@ -1291,16 +1291,16 @@ anv_bo_cache_import(struct anv_device *device,
       }
       __sync_fetch_and_add(&bo->refcount, 1);
    } else {
-      /* For security purposes, we reject BO imports where the size does not
-       * match exactly.  This prevents a malicious client from passing a
-       * buffer to a trusted client, lying about the size, and telling the
+      /* For security purposes, we reject BO imports where the requested size
+       * exceeds the actual size.  This prevents a malicious client from passing
+       * a buffer to a trusted client, lying about the size, and telling the
        * trusted client to try and texture from an image that goes
        * out-of-bounds.  This sort of thing could lead to GPU hangs or worse
        * in the trusted client.  The trusted client can protect itself against
        * this sort of attack but only if it can trust the buffer size.
        */
       off_t import_size = lseek(fd, 0, SEEK_END);
-      if (import_size == (off_t)-1 || import_size != size) {
+      if (import_size == (off_t)-1 || import_size < size) {
          anv_gem_close(device, gem_handle);
          pthread_mutex_unlock(&cache->mutex);
          return vk_error(VK_ERROR_INVALID_EXTERNAL_HANDLE_KHR);
