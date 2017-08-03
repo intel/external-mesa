@@ -5500,7 +5500,7 @@ private version is maintained in the 1.0 branch of the member gitlab server.
                 <command name="vkGetPhysicalDeviceWin32PresentationSupportKHR"/>
             </require>
         </extension>
-        <extension name="VK_ANDROID_native_buffer" number="11" supported="disabled">
+        <extension name="VK_ANDROID_native_buffer" number="11" type="device" supported="vulkan">
             <require>
                 <enum value="4"                                         name="VK_ANDROID_NATIVE_BUFFER_SPEC_VERSION"/>
                 <enum value="11"                                        name="VK_ANDROID_NATIVE_BUFFER_NUMBER"/>

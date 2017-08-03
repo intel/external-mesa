@@ -66,6 +66,7 @@ EXTENSIONS = [
     Extension('VK_KHR_surface',                          25, True),
     Extension('VK_KHR_swapchain',                        68, True),
     Extension('VK_KHR_variable_pointers',                 1, True),
+    Extension('VK_ANDROID_native_buffer',                 4, 'VK_USE_PLATFORM_ANDROID_KHR'),
     Extension('VK_KHR_wayland_surface',                   6, 'VK_USE_PLATFORM_WAYLAND_KHR'),
     Extension('VK_KHR_xcb_surface',                       6, 'VK_USE_PLATFORM_XCB_KHR'),
     Extension('VK_KHR_xlib_surface',                      6, 'VK_USE_PLATFORM_XLIB_KHR'),
