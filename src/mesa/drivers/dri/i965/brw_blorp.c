@@ -788,6 +788,10 @@ do_single_blorp_clear(struct brw_context *brw, struct gl_framebuffer *fb,
        !brw_is_color_fast_clear_compatible(brw, irb->mt, &ctx->Color.ClearColor))
       can_fast_clear = false;
 
+   /* Aux surface usage has been disabled. */
+   if (irb->mt->aux_usage == ISL_AUX_USAGE_NONE)
+      can_fast_clear = false;
+
    /* Surface state can only record one fast clear color value. Therefore
     * unless different levels/layers agree on the color it can be used to
     * represent only single level/layer. Here it will be reserved for the
