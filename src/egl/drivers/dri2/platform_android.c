@@ -57,7 +57,7 @@ struct droid_yuv_format {
  * system/core/include/system/graphics.h
  */
 enum {
-   HAL_PIXEL_FORMAT_NV12 = 0x102,
+   HAL_PIXEL_FORMAT_NV12 = 0x10F,
 };
 
 /* The following table is used to look up a DRI image FourCC based
