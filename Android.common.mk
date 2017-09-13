@@ -81,7 +81,6 @@ LOCAL_CPPFLAGS += \
 LOCAL_CONLYFLAGS += \
 	-std=c99
 
-LOCAL_PROPRIETARY_MODULE = true
 
 ifeq ($(strip $(MESA_ENABLE_ASM)),true)
 ifeq ($(TARGET_ARCH),x86)
@@ -102,6 +101,8 @@ endif
 
 LOCAL_CFLAGS_32 += -DDEFAULT_DRIVER_DIR=\"/vendor/lib/$(MESA_DRI_MODULE_REL_PATH)\"
 LOCAL_CFLAGS_64 += -DDEFAULT_DRIVER_DIR=\"/vendor/lib64/$(MESA_DRI_MODULE_REL_PATH)\"
+
+LOCAL_PROPRIETARY_MODULE := true
 
 # uncomment to keep the debug symbols
 #LOCAL_STRIP_MODULE := false
