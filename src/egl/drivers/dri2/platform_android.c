@@ -57,6 +57,7 @@ struct droid_yuv_format {
  * system/core/include/system/graphics.h
  */
 enum {
+   HAL_PIXEL_FORMAT_NV12_Y_TILED_INTEL = 0x100,
    HAL_PIXEL_FORMAT_NV12 = 0x10F,
 };
 
@@ -69,6 +70,7 @@ static const struct droid_yuv_format droid_yuv_formats[] = {
    { HAL_PIXEL_FORMAT_YCbCr_420_888,   1, 1, __DRI_IMAGE_FOURCC_YVU420 },
    { HAL_PIXEL_FORMAT_YV12,            1, 1, __DRI_IMAGE_FOURCC_YVU420 },
    { HAL_PIXEL_FORMAT_NV12,            0, 2, __DRI_IMAGE_FOURCC_NV12 },
+   { HAL_PIXEL_FORMAT_NV12_Y_TILED_INTEL, 0, 2, __DRI_IMAGE_FOURCC_NV12 },
    /* HACK: See droid_create_image_from_prime_fd() and
     * https://issuetracker.google.com/32077885. */
    { HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED,   0, 2, __DRI_IMAGE_FOURCC_NV12 },
