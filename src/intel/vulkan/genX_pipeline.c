@@ -1506,9 +1506,13 @@ emit_3dstate_ps(struct anv_pipeline *pipeline,
       ps.VectorMaskEnable           = true;
       ps.SamplerCount               = get_sampler_count(fs_bin);
       ps.BindingTableEntryCount     = get_binding_table_entry_count(fs_bin);
-      ps.PushConstantEnable         = wm_prog_data->base.nr_params > 0;
       ps.PositionXYOffsetSelect     = wm_prog_data->uses_pos_offset ?
                                       POSOFFSET_SAMPLE: POSOFFSET_NONE;
+
+      ps.PushConstantEnable =
+         wm_prog_data->base.nr_params > 0 ||
+         wm_prog_data->needs_gen9_ps_header_only_workaround;
+
 #if GEN_GEN < 8
       ps.AttributeEnable            = wm_prog_data->num_varying_inputs > 0;
       ps.oMaskPresenttoRenderTarget = wm_prog_data->uses_omask;

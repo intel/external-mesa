@@ -642,9 +642,25 @@ anv_cmd_buffer_push_constants(struct anv_cmd_buffer *cmd_buffer,
    const struct brw_stage_prog_data *prog_data =
       cmd_buffer->state.pipeline->shaders[stage]->prog_data;
 
-   /* If we don't actually have any push constants, bail. */
-   if (data == NULL || prog_data == NULL || prog_data->nr_params == 0)
-      return (struct anv_state) { .offset = 0 };
+   if (data == NULL || prog_data == NULL || prog_data->nr_params == 0) {
+      /* If we don't actually have any push constants, bail. */
+      if (stage != MESA_SHADER_FRAGMENT)
+         return (struct anv_state) { .offset = 0 };
+
+      const struct brw_wm_prog_data *wm_prog_data =
+         (const struct brw_wm_prog_data *)prog_data;
+      if (!wm_prog_data->needs_gen9_ps_header_only_workaround)
+         return (struct anv_state) { .offset = 0 };
+
+      assert(cmd_buffer->device->info.gen >= 9);
+      assert(wm_prog_data->num_varying_inputs == 0);
+
+      struct anv_state workaround_state =
+         anv_cmd_buffer_alloc_dynamic_state(cmd_buffer, 1 * sizeof(float),
+                                            32 /* bottom 5 bits MBZ */);
+      anv_state_flush(cmd_buffer->device, workaround_state);
+      return workaround_state;
+   }
 
    struct anv_state state =
       anv_cmd_buffer_alloc_dynamic_state(cmd_buffer,

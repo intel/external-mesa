@@ -6164,6 +6164,48 @@ fs_visitor::run_gs()
    return !failed;
 }
 
+/* From the SKL PRM, Volume 16, Workarounds:
+ *
+ *   0877  3D   Pixel Shader Hang possible when pixel shader dispatched with
+ *              only header phases (R0-R2)
+ *
+ *   WA: Enable a non-header phase (e.g. push constant) when dispatch would
+ *       have been header only.
+ *
+ * Additionally from the SKL PRM, Volume 2a, Command Reference,
+ * 3DSTATE_PS and Push Constant Enable:
+ *
+ *   This field must be enabled if the sum of the PS Constant Buffer [3:0]
+ *   Read Length fields in 3DSTATE_CONSTANT_PS is nonzero, and must be
+ *   disabled if the sum is zero. 
+ *
+ * Therefore one needs to prepare register space for minimum amount of
+ * constants to be uploaded.
+ *
+ * Here it is assumed that assign_curb_setup() has determined the total amount
+ * of constants (uniforms + ubos) and therefore it is safe to examine if the
+ * workaround is needed.
+ */
+static void
+gen9_ps_header_only_workaround(struct brw_wm_prog_data *wm_prog_data,
+                               int *first_non_payload_grf)
+{
+   if (wm_prog_data->num_varying_inputs)
+      return;
+
+   if (wm_prog_data->base.curb_read_length)
+      return;
+
+   assert(wm_prog_data->base.nr_params == 0);
+
+   wm_prog_data->needs_gen9_ps_header_only_workaround = true;
+
+   const unsigned wa_upload_size = DIV_ROUND_UP(1, 8);
+
+   wm_prog_data->base.curb_read_length = wa_upload_size;
+   *first_non_payload_grf += wa_upload_size;
+}
+
 bool
 fs_visitor::run_fs(bool allow_spilling, bool do_rep_send)
 {
@@ -6227,6 +6269,10 @@ fs_visitor::run_fs(bool allow_spilling, bool do_rep_send)
       optimize();
 
       assign_curb_setup();
+
+      if (devinfo->gen >= 9)
+         gen9_ps_header_only_workaround(wm_prog_data, &first_non_payload_grf);
+
       assign_urb_setup();
 
       fixup_3src_null_dest();
