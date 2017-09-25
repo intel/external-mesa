@@ -622,6 +622,13 @@ struct brw_wm_prog_data {
    bool contains_noperspective_varying;
 
    /**
+    * Tell constant uplaoders, gen6_upload_push_constants() and
+    * anv_cmd_buffer_push_constants(), that workaround is needed.
+    * See gen9_ps_header_only_workaround().
+    */
+   bool needs_gen9_ps_header_only_workaround;
+
+   /**
     * Mask of which interpolation modes are required by the fragment shader.
     * Used in hardware setup on gen6+.
     */
