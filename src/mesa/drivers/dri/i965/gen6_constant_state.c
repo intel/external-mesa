@@ -52,9 +52,9 @@ gen6_upload_push_constants(struct brw_context *brw,
    const struct gen_device_info *devinfo = &brw->screen->devinfo;
    struct gl_context *ctx = &brw->ctx;
 
-   if (prog_data->nr_params == 0) {
-      stage_state->push_const_size = 0;
-   } else {
+   stage_state->push_const_size = 0;
+
+   if (prog_data->nr_params) {
       /* Updates the ParamaterValues[i] pointers for all parameters of the
        * basic type of PROGRAM_STATE_VAR.
        */
@@ -119,6 +119,17 @@ gen6_upload_push_constants(struct brw_context *brw,
        * The other shader stages all match the VS's limits.
        */
       assert(stage_state->push_const_size <= 32);
+   } else if (stage_state->stage == MESA_SHADER_FRAGMENT &&
+              devinfo->gen >= 9) {
+      const struct brw_wm_prog_data *wm_prog_data =
+         (const struct brw_wm_prog_data *)prog_data;
+
+      if (wm_prog_data->needs_gen9_ps_header_only_workaround) {
+         intel_upload_space(brw, 1 * sizeof(gl_constant_value), 32,
+                            &stage_state->push_const_bo,
+                            &stage_state->push_const_offset);
+         stage_state->push_const_size = ALIGN(1, 8) / 8;
+      }
    }
 
    stage_state->push_constants_dirty = true;
