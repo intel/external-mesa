@@ -636,3 +636,12 @@ _mesa_GetPerfQueryDataINTEL(GLuint queryHandle, GLuint flags,
    if (obj->Ready)
       ctx->Driver.GetPerfQueryData(ctx, obj, dataSize, data, bytesWritten);
 }
+
+extern void GLAPIENTRY
+_mesa_SetPerfQueryConfigINTEL(GLuint configId)
+{
+   GET_CURRENT_CONTEXT(ctx);
+
+   if (ctx->Driver.SetPerfQueryConfig)
+      ctx->Driver.SetPerfQueryConfig(ctx, configId);
+}
