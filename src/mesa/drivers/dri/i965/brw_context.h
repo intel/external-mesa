@@ -598,7 +598,8 @@ struct gen_l3_config;
 
 enum brw_query_kind {
    OA_COUNTERS,
-   PIPELINE_STATS
+   PIPELINE_STATS,
+   NULL_RENDERER
 };
 
 struct brw_perf_query_info
@@ -1123,6 +1124,8 @@ struct brw_context
       struct brw_perf_query_info *queries;
       int n_queries;
 
+      uint64_t mdapi_metrics_set_id;
+
       /* The i915 perf stream we open to setup + enable the OA counters */
       int oa_stream_fd;
 
@@ -1142,6 +1145,7 @@ struct brw_context
 
       int n_active_oa_queries;
       int n_active_pipeline_stats_queries;
+      int n_active_null_renderers;
 
       /* The number of queries depending on running OA counters which
        * extends beyond brw_end_perf_query() since we need to wait until

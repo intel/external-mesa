@@ -1692,5 +1692,12 @@ enum brw_pixel_shader_coverage_mask_mode {
 
 #define CS_DEBUG_MODE2                     0x20d8 /* Gen9+ */
 # define CSDBG2_CONSTANT_BUFFER_ADDRESS_OFFSET_DISABLE (1 << 4)
+# define CSDBG2_3D_MEDIA_INSTRUCTION_DISABLE           (1 << 1)
+# define CSDBG2_3D_RENDERER_INSTRUCTION_DISABLE        (1 << 0)
 
+#define GEN6_RPSTAT1                       0xA01C
+#define  GEN6_RPSTAT1_CORE_FREQ_SHIFT      4
+#define  GEN6_RPSTAT1_CORE_FREQ_MASK       INTEL_MASK(10, 4)
+#define  GEN9_RPSTAT1_CORE_FREQ_SHIFT      23
+#define  GEN9_RPSTAT1_CORE_FREQ_MASK       INTEL_MASK(31, 23)
 #endif

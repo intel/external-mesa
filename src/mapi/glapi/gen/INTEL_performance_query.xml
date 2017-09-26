@@ -68,6 +68,10 @@
     <param name="bytesWritten" type="GLuint *"/>
   </function>
 
+  <function name="SetPerfQueryConfigIdINTEL" es2="2.0">
+    <param name="configId" type="GLuint"/>
+  </function>
+
   <enum name="PERFQUERY_SINGLE_CONTEXT_INTEL" value="0x0000"/>
   <enum name="PERFQUERY_GLOBAL_CONTEXT_INTEL" value="0x0001"/>
   <enum name="PERFQUERY_WAIT_INTEL" value="0x83FB"/>
