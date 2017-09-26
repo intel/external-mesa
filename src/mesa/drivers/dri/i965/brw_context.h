@@ -1099,6 +1099,8 @@ struct brw_context
       struct brw_perf_query_info *queries;
       int n_queries;
 
+      uint64_t mdapi_metrics_set_id;
+
       /* The i915 perf stream we open to setup + enable the OA counters */
       int oa_stream_fd;
 
