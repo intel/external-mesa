@@ -815,6 +815,8 @@ struct dd_function_table {
                             GLsizei dataSize,
                             GLuint *data,
                             GLuint *bytesWritten);
+   void (*SetPerfQueryConfig)(struct gl_context *ctx,
+                              GLuint configId);
    /*@}*/
 
 
