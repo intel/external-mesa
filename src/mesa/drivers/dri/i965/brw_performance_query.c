@@ -228,6 +228,109 @@ struct brw_oa_sample_buf {
 };
 
 /**
+ * Data format expected by MDAPI.
+ */
+
+typedef uint64_t UINT64;
+typedef uint32_t UINT32;
+typedef uint32_t BOOL32;
+
+typedef struct {
+    UINT64 IAVertices;
+    UINT64 IAPrimitives;
+    UINT64 VSInvocations;
+    UINT64 GSInvocations;   // ignored for DX9
+    UINT64 GSPrimitives;    // ignored for DX9
+    UINT64 CInvocations;
+    UINT64 CPrimitives;
+    UINT64 PSInvocations;
+    UINT64 HSInvocations;
+    UINT64 DSInvocations;
+    UINT64 CSInvocations;
+} GTDI_QUERY_PIPELINE_METRICS_EXT;
+
+#define GTDI_MAX_READ_REGS 16
+
+#define GTDI_GFX_PERF_COUNTERS_256B_COUNT          (45 + 16)  // 45 OA & 16 NOA
+#define GTDI_QUERY_HSW_METRICS_COUNT               (45 + 16)  // 45 OA & 16 NOA
+#define GTDI_QUERY_HSW_BEGIN_TIMESTAMP_CNTR_ID      44
+typedef struct {
+    UINT64 TotalTime;                       // Total query time in nanoseconds
+
+    UINT64 ACounters[45];                   // A0 -> A44
+    UINT64 NOACounters[16];                 // Configurable NOA counter, B0 in the hardware
+
+    UINT64 PerfCounter1;                    // ODLAT Perf Mon counter 1.
+    UINT64 PerfCounter2;                    // ODLAT Perf Mon counter 2.
+    BOOL32 SplitOccured;                    // Set to true if command buffer split has occurred
+    BOOL32 CoreFrequencyChanged;            // Set to true if core frequency has changed
+    UINT64 CoreFrequency;                   // Core frequency during the query,
+    UINT32 ReportId;
+    UINT32 ReportsCount;
+} GTDI_QUERY_HSW_METRICS;
+
+//-----------------------------
+// This is for Broadwell only
+//-----------------------------
+#define GTDI_QUERY_BDW_METRICS_OA_COUNT         36
+#define GTDI_QUERY_BDW_METRICS_OA_40b_COUNT     32
+#define GTDI_QUERY_BDW_METRICS_NOA_COUNT        16
+typedef struct {
+    UINT64 TotalTime;                       // Total query time in nanoseconds
+    UINT64 GPUTicks;                        //
+    UINT64 OaCntr[GTDI_QUERY_BDW_METRICS_OA_COUNT];
+    UINT64 NoaCntr[GTDI_QUERY_BDW_METRICS_NOA_COUNT];
+    UINT64 BeginTimestamp;
+    UINT64 Reserved1;
+    UINT64 Reserved2;
+    UINT32 Reserved3;
+    BOOL32 OverrunOccured;
+    UINT64 MarkerUser;
+    UINT64 MarkerDriver;
+
+    UINT64 SliceFrequency;                  // SKL+ only
+    UINT64 UnsliceFrequency;                // SKL+ only
+    UINT64 PerfCounter1;                    // ODLAT Perf Mon counter 1.
+    UINT64 PerfCounter2;                    // ODLAT Perf Mon counter 2.
+    BOOL32 SplitOccured;                    // Set to true if command buffer split has occurred
+    BOOL32 CoreFrequencyChanged;            // Set to true if core frequency has changed
+    UINT64 CoreFrequency;                   // Core frequency during the query,
+    UINT32 ReportId;
+    UINT32 ReportsCount;
+} GTDI_QUERY_BDW_METRICS;
+
+//-----------------------------
+// This is for Skylake only
+//-----------------------------
+typedef struct {
+    UINT64 TotalTime;                       // Total query time in nanoseconds
+    UINT64 GPUTicks;                        //
+    UINT64 OaCntr[GTDI_QUERY_BDW_METRICS_OA_COUNT];
+    UINT64 NoaCntr[GTDI_QUERY_BDW_METRICS_NOA_COUNT];
+    UINT64 BeginTimestamp;
+    UINT64 Reserved1;
+    UINT64 Reserved2;
+    UINT32 Reserved3;
+    BOOL32 OverrunOccured;
+    UINT64 MarkerUser;
+    UINT64 MarkerDriver;
+
+    UINT64 SliceFrequency;                  // SKL+ only
+    UINT64 UnsliceFrequency;                // SKL+ only
+    UINT64 PerfCounter1;                    // ODLAT Perf Mon counter 1.
+    UINT64 PerfCounter2;                    // ODLAT Perf Mon counter 2.
+    BOOL32 SplitOccured;                    // Set to true if command buffer split has occurred
+    BOOL32 CoreFrequencyChanged;            // Set to true if core frequency has changed
+    UINT64 CoreFrequency;                   // Core frequency during the query,
+    UINT32 ReportId;
+    UINT32 ReportsCount;
+
+    UINT64 UserCntr[GTDI_MAX_READ_REGS];
+    UINT32 UserCntrCfgId;
+    UINT32 Reserved4;
+} GTDI_QUERY_SKL_METRICS;
+
+/**
  * i965 representation of a performance query object.
  *
  * NB: We want to keep this structure relatively lean considering that
@@ -273,10 +376,21 @@ struct brw_perf_query_object
           */
          struct exec_node *samples_head;
 
-         /**
-          * Storage for the final accumulated OA counters.
-          */
-         uint64_t accumulator[MAX_OA_REPORT_COUNTERS];
+         union {
+            /**
+             * Storage for the final accumulated OA counters.
+             */
+            uint64_t accumulator[MAX_OA_REPORT_COUNTERS];
+
+            /**
+             * MDAPI accumulated counters.
+             */
+            union {
+               GTDI_QUERY_HSW_METRICS gen7;
+               GTDI_QUERY_BDW_METRICS gen8;
+               GTDI_QUERY_SKL_METRICS gen9;
+            } mdapi_data;
+         };
 
          /**
           * false while in the unaccumulated_elements list, and set to
@@ -285,6 +399,10 @@ struct brw_perf_query_object
           */
          bool results_accumulated;
 
+         /**
+          * Number of reports accumulated to produce the results.
+          */
+         uint32_t reports_accumulated;
       } oa;
 
       struct {
@@ -310,12 +428,23 @@ brw_perf_query(struct gl_perf_query_object *o)
 
 #define MI_RPC_BO_SIZE              4096
 #define MI_RPC_BO_END_OFFSET_BYTES  (MI_RPC_BO_SIZE / 2)
+#define MI_FREQ_START_OFFSET_BYTES  (3072)
+#define MI_FREQ_END_OFFSET_BYTES    (3076)
 
 /******************************************************************************/
 
 static bool
 brw_is_perf_query_ready(struct gl_context *ctx,
                         struct gl_perf_query_object *o);
+
+static uint64_t
+brw_perf_query_get_metric_id(struct brw_context *brw,
+                             const struct brw_perf_query_info *query)
+{
+   if (query->oa_metrics_set_id == 0)
+      return brw->perfquery.mdapi_metrics_set_id;
+   return query->oa_metrics_set_id;
+}
 
 static void
 dump_perf_query_callback(GLuint id, void *query_void, void *brw_void)
@@ -340,6 +469,12 @@ dump_perf_query_callback(GLuint id, void *query_void, void *brw_void)
           o->Used ? "Dirty," : "New,",
           o->Active ? "Active," : (o->Ready ? "Ready," : "Pending,"),
           obj->pipeline_stats.bo ? "yes" : "no");
+      break;
+   case NULL_RENDERER:
+      DBG("%4d: %-6s %-8s NULL_RENDERER\n",
+          id,
+          o->Used ? "Dirty," : "New,",
+          o->Active ? "Active," : (o->Ready ? "Ready," : "Pending,"));
       break;
    }
 }
@@ -437,6 +572,9 @@ brw_get_perf_query_info(struct gl_context *ctx,
    case PIPELINE_STATS:
       *n_active = brw->perfquery.n_active_pipeline_stats_queries;
       break;
+
+   case NULL_RENDERER:
+      *n_active = brw->perfquery.n_active_null_renderers;
    }
 }
 
@@ -599,6 +737,108 @@ accumulate_uint40(int a_index,
    *accumulator += delta;
 }
 
+static void
+gen8_read_report_clock_ratios(const uint32_t *report,
+                              uint32_t *slice_freq_mhz,
+                              uint32_t *unslice_freq_mhz)
+{
+   uint32_t unslice_freq = report[0] & 0x1ff;
+   uint32_t slice_freq_low = (report[0] >> 25) & 0x7f;
+   uint32_t slice_freq_high = (report[0] >> 9) & 0x3;
+   uint32_t slice_freq = slice_freq_low | (slice_freq_high << 7);
+
+   *slice_freq_mhz = (slice_freq * 16666) / 1000;
+   *unslice_freq_mhz = (unslice_freq * 16666) / 1000;
+}
+
+/**
+ * Handle special data structures expected by MDAPI.
+ */
+static void
+add_mdapi_deltas(struct brw_context *brw,
+                 struct brw_perf_query_object *obj,
+                 const uint32_t *start,
+                 const uint32_t *end)
+{
+   const struct gen_device_info *devinfo = &brw->screen->devinfo;
+   int i, idx;
+
+   switch (devinfo->gen) {
+   case 7: {
+      GTDI_QUERY_HSW_METRICS *hsw = &obj->oa.mdapi_data.gen7;
+
+      assert(devinfo->is_haswell || devinfo->is_cherryview);
+
+      accumulate_uint32(start + 1, end + 1, &hsw->TotalTime);
+      hsw->TotalTime = 1000000000ull * hsw->TotalTime / devinfo->timestamp_frequency;
+
+      for (i = 0; i < ARRAY_SIZE(hsw->ACounters); i++)
+         accumulate_uint32(start + 3 + i, end + 3 + i, &hsw->ACounters[i]);
+
+      for (i = 0; i < ARRAY_SIZE(hsw->NOACounters); i++)
+         accumulate_uint32(start + 3 + i + 45, end + 3 + i + 45,
+                           &hsw->NOACounters[i]);
+
+      hsw->ReportsCount++;
+      break;
+   }
+   case 8: {
+      GTDI_QUERY_BDW_METRICS *bdw = &obj->oa.mdapi_data.gen8;
+      uint32_t slice_freq, unslice_freq;
+
+      gen8_read_report_clock_ratios(start, &slice_freq, &unslice_freq);
+      bdw->SliceFrequency += slice_freq;
+      bdw->UnsliceFrequency += unslice_freq;
+
+      accumulate_uint32(start + 1, end + 1, &bdw->TotalTime);
+      bdw->TotalTime = 1000000000ull * bdw->TotalTime / devinfo->timestamp_frequency;
+
+      accumulate_uint32(start + 3, end + 3, &bdw->GPUTicks);
+
+      idx = 0;
+      for (i = 0; i < GTDI_QUERY_BDW_METRICS_OA_40b_COUNT; i++)
+         accumulate_uint40(i, start, end, &bdw->OaCntr[idx++]);
+
+      for (i = 0; i < (GTDI_QUERY_BDW_METRICS_OA_COUNT - GTDI_QUERY_BDW_METRICS_OA_40b_COUNT); i++)
+         accumulate_uint32(start + 36 + i, end + 36 + i, &bdw->OaCntr[idx++]);
+
+      for (i = 0; i < ARRAY_SIZE(bdw->NoaCntr); i++)
+         accumulate_uint32(start + 48 + i, end + 48 + i, &bdw->NoaCntr[i]);
+
+      bdw->ReportsCount++;
+      break;
+   }
+   case 9: {
+      GTDI_QUERY_SKL_METRICS *skl = &obj->oa.mdapi_data.gen9;
+      uint32_t slice_freq, unslice_freq;
+
+      gen8_read_report_clock_ratios(start, &slice_freq, &unslice_freq);
+      skl->SliceFrequency += slice_freq * 1000000;
+      skl->UnsliceFrequency += unslice_freq * 1000000;
+
+      accumulate_uint32(start + 1, end + 1, &skl->TotalTime);
+      skl->TotalTime = 1000000000ull * skl->TotalTime / devinfo->timestamp_frequency;
+
+      accumulate_uint32(start + 3, end + 3, &skl->GPUTicks);
+
+      idx = 0;
+      for (i = 0; i < GTDI_QUERY_BDW_METRICS_OA_40b_COUNT; i++)
+         accumulate_uint40(i, start, end, &skl->OaCntr[idx++]);
+
+      for (i = 0; i < (GTDI_QUERY_BDW_METRICS_OA_COUNT - GTDI_QUERY_BDW_METRICS_OA_40b_COUNT); i++)
+         accumulate_uint32(start + 36 + i, end + 36 + i, &skl->OaCntr[idx++]);
+
+      for (i = 0; i < ARRAY_SIZE(skl->NoaCntr); i++)
+         accumulate_uint32(start + 48 + i, end + 48 + i, &skl->NoaCntr[i]);
+
+      skl->ReportsCount++;
+      break;
+   }
+   default:
+      unreachable("unexpected gen");
+   }
+}
+
 /**
  * Given pointers to starting and ending OA snapshots, add the deltas for each
  * counter to the results.
@@ -613,6 +853,13 @@ add_deltas(struct brw_context *brw,
    uint64_t *accumulator = obj->oa.accumulator;
    int idx = 0;
    int i;
+
+   obj->oa.reports_accumulated++;
+
+   if (query->n_counters == 0) {
+      add_mdapi_deltas(brw, obj, start, end);
+      return;
+   }
 
    switch (query->oa_format) {
    case I915_OA_FORMAT_A32u40_A4u32_B8_C8:
@@ -1111,11 +1358,15 @@ brw_begin_perf_query(struct gl_context *ctx,
        */
       if (brw->perfquery.oa_stream_fd != -1 &&
           brw->perfquery.current_oa_metrics_set_id !=
-          query->oa_metrics_set_id) {
+          brw_perf_query_get_metric_id(brw, query)) {
 
-         if (brw->perfquery.n_oa_users != 0)
+         if (brw->perfquery.n_oa_users != 0) {
+            DBG("WARNING: Begin(%d) failed already using perf config=%i/%"PRIu64"\n",
+                o->Id,
+                brw->perfquery.current_oa_metrics_set_id,
+                brw_perf_query_get_metric_id(brw, query));
             return false;
-         else
+         } else
             close_perf(brw);
       }
 
@@ -1178,15 +1429,16 @@ brw_begin_perf_query(struct gl_context *ctx,
              prev_sample_period / 1000000ul);
 
          if (!open_i915_perf_oa_stream(brw,
-                                       query->oa_metrics_set_id,
+                                       brw_perf_query_get_metric_id(brw, query),
                                        query->oa_format,
                                        period_exponent,
                                        screen->fd, /* drm fd */
-                                       brw->hw_ctx))
+                                       brw->hw_ctx)) {
             return false;
+         }
       } else {
          assert(brw->perfquery.current_oa_metrics_set_id ==
-                query->oa_metrics_set_id &&
+                brw_perf_query_get_metric_id(brw, query) &&
                 brw->perfquery.current_oa_format ==
                 query->oa_format);
       }
@@ -1225,6 +1477,9 @@ brw_begin_perf_query(struct gl_context *ctx,
       /* Take a starting OA counter snapshot. */
       brw->vtbl.emit_mi_report_perf_count(brw, obj->oa.bo, 0,
                                           obj->oa.begin_report_id);
+      brw_store_register_mem32(brw, obj->oa.bo, GEN6_RPSTAT1,
+                               MI_FREQ_START_OFFSET_BYTES);
+
       ++brw->perfquery.n_active_oa_queries;
 
       /* No already-buffered samples can possibly be associated with this query
@@ -1245,6 +1500,7 @@ brw_begin_perf_query(struct gl_context *ctx,
       buf->refcount++;
 
       memset(obj->oa.accumulator, 0, sizeof(obj->oa.accumulator));
+      memset(&obj->oa.mdapi_data, 0, sizeof(obj->oa.mdapi_data));
       obj->oa.results_accumulated = false;
 
       add_to_unaccumulated_query_list(brw, obj);
@@ -1264,6 +1520,16 @@ brw_begin_perf_query(struct gl_context *ctx,
       snapshot_statistics_registers(brw, obj, 0);
 
       ++brw->perfquery.n_active_pipeline_stats_queries;
+      break;
+
+   case NULL_RENDERER:
+      ++brw->perfquery.n_active_null_renderers;
+      BEGIN_BATCH(3);
+      OUT_BATCH(MI_LOAD_REGISTER_IMM | (3 - 2));
+      OUT_BATCH(CS_DEBUG_MODE2);
+      OUT_BATCH(REG_MASK(CSDBG2_3D_RENDERER_INSTRUCTION_DISABLE) |
+                CSDBG2_3D_RENDERER_INSTRUCTION_DISABLE);
+      ADVANCE_BATCH();
       break;
    }
 
@@ -1295,7 +1561,6 @@ brw_end_perf_query(struct gl_context *ctx,
 
    switch (obj->query->kind) {
    case OA_COUNTERS:
-
       /* NB: It's possible that the query will have already been marked
        * as 'accumulated' if an error was seen while reading samples
        * from perf. In this case we mustn't try and emit a closing
@@ -1303,6 +1568,8 @@ brw_end_perf_query(struct gl_context *ctx,
        */
       if (!obj->oa.results_accumulated) {
          /* Take an ending OA counter snapshot. */
+         brw_store_register_mem32(brw, obj->oa.bo, GEN6_RPSTAT1,
+                                  MI_FREQ_END_OFFSET_BYTES);
          brw->vtbl.emit_mi_report_perf_count(brw, obj->oa.bo,
                                              MI_RPC_BO_END_OFFSET_BYTES,
                                              obj->oa.begin_report_id + 1);
@@ -1321,6 +1588,16 @@ brw_end_perf_query(struct gl_context *ctx,
                                     STATS_BO_END_OFFSET_BYTES);
       --brw->perfquery.n_active_pipeline_stats_queries;
       break;
+
+   case NULL_RENDERER:
+      if (--brw->perfquery.n_active_null_renderers == 0) {
+         BEGIN_BATCH(3);
+         OUT_BATCH(MI_LOAD_REGISTER_IMM | (3 - 2));
+         OUT_BATCH(CS_DEBUG_MODE2);
+         OUT_BATCH(REG_MASK(CSDBG2_3D_RENDERER_INSTRUCTION_DISABLE));
+         ADVANCE_BATCH();
+      }
+      break;
    }
 }
 
@@ -1334,6 +1611,8 @@ brw_wait_perf_query(struct gl_context *ctx, struct gl_perf_query_object *o)
    assert(!o->Ready);
 
    switch (obj->query->kind) {
+   case NULL_RENDERER:
+      break;
    case OA_COUNTERS:
       bo = obj->oa.bo;
       break;
@@ -1386,10 +1665,101 @@ brw_is_perf_query_ready(struct gl_context *ctx,
       return (obj->pipeline_stats.bo &&
               !brw_batch_references(&brw->batch, obj->pipeline_stats.bo) &&
               !brw_bo_busy(obj->pipeline_stats.bo));
+   case NULL_RENDERER:
+      return true;
    }
 
    unreachable("missing ready check for unknown query kind");
    return false;
+}
+
+static void
+read_core_frequency(struct brw_context *brw,
+                    struct brw_perf_query_object *obj,
+                    uint64_t *freq,
+                    uint32_t *changed)
+{
+   const struct gen_device_info *devinfo = &brw->screen->devinfo;
+   uint32_t *start_reg = obj->oa.map + MI_FREQ_START_OFFSET_BYTES,
+      *end_reg = obj->oa.map + MI_FREQ_END_OFFSET_BYTES;
+   uint32_t start, end;
+
+   switch (devinfo->gen) {
+   case 7:
+   case 8:
+      start = (start_reg[0] & GEN6_RPSTAT1_CORE_FREQ_MASK) >> GEN6_RPSTAT1_CORE_FREQ_SHIFT;
+      end = (end_reg[0] & GEN6_RPSTAT1_CORE_FREQ_MASK) >> GEN6_RPSTAT1_CORE_FREQ_SHIFT;
+      *freq = end * 50ULL;
+      break;
+   case 9:
+      start = (start_reg[0] & GEN9_RPSTAT1_CORE_FREQ_MASK) >> GEN9_RPSTAT1_CORE_FREQ_SHIFT;
+      end = (end_reg[0] & GEN9_RPSTAT1_CORE_FREQ_MASK) >> GEN9_RPSTAT1_CORE_FREQ_SHIFT;
+      *freq = end * 100ULL / 6ULL;
+      break;
+   default:
+      unreachable("unexpected gen");
+   }
+
+   *freq *= 1000000ULL;
+   *changed = start != end;
+}
+
+static int
+get_mdapi_oa_counter_data(struct brw_context *brw,
+                          struct brw_perf_query_object *obj,
+                          size_t data_size,
+                          uint8_t *data)
+{
+   const struct gen_device_info *devinfo = &brw->screen->devinfo;
+   int written = 0;
+
+   if (!obj->oa.results_accumulated) {
+      switch (devinfo->gen) {
+      case 7:
+         read_core_frequency(brw, obj,
+                             &obj->oa.mdapi_data.gen7.CoreFrequency,
+                             &obj->oa.mdapi_data.gen7.CoreFrequencyChanged);
+         break;
+      case 8:
+         read_core_frequency(brw, obj,
+                             &obj->oa.mdapi_data.gen8.CoreFrequency,
+                             &obj->oa.mdapi_data.gen8.CoreFrequencyChanged);
+         break;
+      case 9:
+         read_core_frequency(brw, obj,
+                             &obj->oa.mdapi_data.gen9.CoreFrequency,
+                             &obj->oa.mdapi_data.gen9.CoreFrequencyChanged);
+         break;
+      default:
+         unreachable("unexpected gen");
+      }
+
+      accumulate_oa_reports(brw, obj);
+      assert(obj->oa.results_accumulated);
+   }
+
+   switch (devinfo->gen) {
+   case 7:
+      memcpy(data, &obj->oa.mdapi_data.gen7, sizeof(obj->oa.mdapi_data.gen7));
+      written = sizeof(obj->oa.mdapi_data.gen7);
+      break;
+   case 8:
+      obj->oa.mdapi_data.gen8.SliceFrequency /= obj->oa.reports_accumulated;
+      obj->oa.mdapi_data.gen8.UnsliceFrequency /= obj->oa.reports_accumulated;
+      memcpy(data, &obj->oa.mdapi_data.gen8, sizeof(obj->oa.mdapi_data.gen8));
+      written = sizeof(obj->oa.mdapi_data.gen8);
+      break;
+   case 9:
+      obj->oa.mdapi_data.gen9.SliceFrequency /= obj->oa.reports_accumulated;
+      obj->oa.mdapi_data.gen9.UnsliceFrequency /= obj->oa.reports_accumulated;
+      memcpy(data, &obj->oa.mdapi_data.gen9, sizeof(obj->oa.mdapi_data.gen9));
+      written = sizeof(obj->oa.mdapi_data.gen9);
+      break;
+   default:
+      unreachable("unexpected gen");
+   }
+
+   return written;
 }
 
 static int
@@ -1496,11 +1866,17 @@ brw_get_perf_query_data(struct gl_context *ctx,
 
    switch (obj->query->kind) {
    case OA_COUNTERS:
-      written = get_oa_counter_data(brw, obj, data_size, (uint8_t *)data);
+      if (obj->query->n_counters == 0)
+         written = get_mdapi_oa_counter_data(brw, obj, data_size, (uint8_t *)data);
+      else
+         written = get_oa_counter_data(brw, obj, data_size, (uint8_t *)data);
       break;
 
    case PIPELINE_STATS:
       written = get_pipeline_stats_data(brw, obj, data_size, (uint8_t *)data);
+      break;
+
+   case NULL_RENDERER:
       break;
    }
 
@@ -1521,7 +1897,6 @@ brw_new_perf_query_object(struct gl_context *ctx, unsigned query_index)
       return NULL;
 
    obj->query = query;
-
    brw->perfquery.n_query_instances++;
 
    return &obj->base;
@@ -1566,6 +1941,9 @@ brw_delete_perf_query(struct gl_context *ctx,
          brw_bo_unreference(obj->pipeline_stats.bo);
          obj->pipeline_stats.bo = NULL;
       }
+      break;
+
+   case NULL_RENDERER:
       break;
    }
 
@@ -1711,6 +2089,51 @@ init_pipeline_statistic_query_registers(struct brw_context *brw)
    query->data_size = sizeof(uint64_t) * query->n_counters;
 }
 
+static void
+init_mdapi_pipeline_statistic_query_registers(struct brw_context *brw)
+{
+   const struct gen_device_info *devinfo = &brw->screen->devinfo;
+   struct brw_perf_query_info *query = append_query_info(brw);
+
+   query->kind = PIPELINE_STATS;
+   query->name = "Intel_Raw_Pipeline_Statistics_Query";
+   query->n_counters = 0;
+   query->counters =
+      rzalloc_array(brw, struct brw_perf_query_counter, MAX_STAT_COUNTERS);
+
+   /* The order has to match GTDI_QUERY_PIPELINE_METRICS_EXT. */
+   add_basic_stat_reg(query, IA_VERTICES_COUNT,
+                      "N vertices submitted");
+   add_basic_stat_reg(query, IA_PRIMITIVES_COUNT,
+                      "N primitives submitted");
+   add_basic_stat_reg(query, VS_INVOCATION_COUNT,
+                      "N vertex shader invocations");
+   add_basic_stat_reg(query, GS_INVOCATION_COUNT,
+                      "N geometry shader invocations");
+   add_basic_stat_reg(query, GS_PRIMITIVES_COUNT,
+                      "N geometry shader primitives emitted");
+   add_basic_stat_reg(query, CL_INVOCATION_COUNT,
+                      "N primitives entering clipping");
+   add_basic_stat_reg(query, CL_PRIMITIVES_COUNT,
+                      "N primitives leaving clipping");
+   if (devinfo->is_haswell || devinfo->gen == 8)
+      add_stat_reg(query, PS_INVOCATION_COUNT, 1, 4,
+                   "N fragment shader invocations",
+                   "N fragment shader invocations");
+   else
+      add_basic_stat_reg(query, PS_INVOCATION_COUNT,
+                         "N fragment shader invocations");
+   add_basic_stat_reg(query, HS_INVOCATION_COUNT,
+                      "N TCS shader invocations");
+   add_basic_stat_reg(query, DS_INVOCATION_COUNT,
+                      "N TES shader invocations");
+   if (devinfo->gen >= 7)
+      add_basic_stat_reg(query, CS_INVOCATION_COUNT,
+                         "N compute shader invocations");
+
+   query->data_size = sizeof(uint64_t) * query->n_counters;
+}
+
 static bool
 read_file_uint64(const char *file, uint64_t *val)
 {
@@ -1741,6 +2164,48 @@ register_oa_config(struct brw_context *brw,
    registred_query->oa_metrics_set_id = config_id;
    DBG("metric set registred: id = %" PRIu64", guid = %s\n",
        registred_query->oa_metrics_set_id, query->guid);
+}
+
+static void
+fill_mdapi_perf_query_info(struct brw_context *brw,
+                           struct brw_perf_query_info *query,
+                           const char *name,
+                           enum brw_query_kind kind)
+{
+   const struct gen_device_info *devinfo = &brw->screen->devinfo;
+
+
+   query->kind = kind;
+   query->name = name;
+   query->guid = NULL;
+   query->counters = NULL;
+   query->n_counters = 0;
+   query->oa_metrics_set_id = 0; /* Set by MDAPI */
+
+   switch (devinfo->gen) {
+   case 7:
+      query->oa_format = I915_OA_FORMAT_A45_B8_C8;
+      query->data_size = sizeof(GTDI_QUERY_HSW_METRICS);
+      break;
+   case 8:
+      query->oa_format = I915_OA_FORMAT_A32u40_A4u32_B8_C8;
+      query->data_size = sizeof(GTDI_QUERY_BDW_METRICS);
+      break;
+   case 9:
+      query->oa_format = I915_OA_FORMAT_A32u40_A4u32_B8_C8;
+      query->data_size = sizeof(GTDI_QUERY_SKL_METRICS);
+      break;
+   }
+
+   /* Accumulation buffer offsets copied from an actual query... */
+   const struct brw_perf_query_info *copy_query =
+      &brw->perfquery.queries[0];
+
+   query->gpu_time_offset = copy_query->gpu_time_offset;
+   query->gpu_clock_offset = copy_query->gpu_clock_offset;
+   query->a_offset = copy_query->a_offset;
+   query->b_offset = copy_query->b_offset;
+   query->c_offset = copy_query->c_offset;
 }
 
 static void
@@ -1792,6 +2257,14 @@ enumerate_sysfs_metrics(struct brw_context *brw, const char *sysfs_dev_dir)
          register_oa_config(brw, (const struct brw_perf_query_info *)entry->data, id);
       } else
          DBG("metric set not known by mesa (skipping)\n");
+   }
+
+   /* MDAPI queries */
+   {
+      struct brw_perf_query_info *query = append_query_info(brw);
+      fill_mdapi_perf_query_info(brw, query, "Intel_Raw_Hardware_Counters_Set_0_Query", OA_COUNTERS);
+      query = append_query_info(brw);
+      fill_mdapi_perf_query_info(brw, query, "Intel_Null_Hardware_Query", NULL_RENDERER);
    }
 
    closedir(metricsdir);
@@ -1905,6 +2378,9 @@ init_oa_sys_vars(struct brw_context *brw, const char *sysfs_dev_dir)
    const struct gen_device_info *devinfo = &brw->screen->devinfo;
    uint64_t min_freq_mhz = 0, max_freq_mhz = 0;
    __DRIscreen *screen = brw->screen->driScrnPriv;
+
+   if (brw->perfquery.mdapi_metrics_set_id == 0)
+      brw->perfquery.mdapi_metrics_set_id = 1;
 
    if (!read_sysfs_drm_device_file_uint64(brw, sysfs_dev_dir,
                                           "gt_min_freq_mhz",
@@ -2116,6 +2592,7 @@ brw_init_perf_query_info(struct gl_context *ctx)
       return brw->perfquery.n_queries;
 
    init_pipeline_statistic_query_registers(brw);
+   init_mdapi_pipeline_statistic_query_registers(brw);
 
    oa_register = get_register_queries_function(devinfo);
 
@@ -2183,6 +2660,16 @@ brw_init_perf_query_info(struct gl_context *ctx)
    return brw->perfquery.n_queries;
 }
 
+static void
+brw_set_perf_query_config_id(struct gl_context *ctx,
+                             GLuint configId)
+{
+   struct brw_context *brw = brw_context(ctx);
+
+   DBG("SetConfigId configId=%i\n", configId);
+   brw->perfquery.mdapi_metrics_set_id = configId;
+}
+
 void
 brw_init_performance_queries(struct brw_context *brw)
 {
@@ -2198,4 +2685,5 @@ brw_init_performance_queries(struct brw_context *brw)
    ctx->Driver.WaitPerfQuery = brw_wait_perf_query;
    ctx->Driver.IsPerfQueryReady = brw_is_perf_query_ready;
    ctx->Driver.GetPerfQueryData = brw_get_perf_query_data;
+   ctx->Driver.SetPerfQueryConfigId = brw_set_perf_query_config_id;
 }
