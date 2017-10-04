@@ -704,11 +704,11 @@ static int get_ycbcr_from_flexlayout(struct android_flex_layout *outFlexLayout, 
        switch(outFlexLayout->planes[i].component){
          case FLEX_COMPONENT_Y:
              ycbcr->y = outFlexLayout->planes[i].top_left;
-             ycbcr->ystride = outFlexLayout->planes[i].h_increment;
+             ycbcr->ystride = outFlexLayout->planes[i].v_increment;
          break;
          case FLEX_COMPONENT_Cb:
              ycbcr->cb = outFlexLayout->planes[i].top_left;
-             ycbcr->cstride = outFlexLayout->planes[i].h_increment;
+             ycbcr->cstride = outFlexLayout->planes[i].v_increment;
          break;
          case FLEX_COMPONENT_Cr:
              ycbcr->cr = outFlexLayout->planes[i].top_left;
