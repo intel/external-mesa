@@ -2268,6 +2268,7 @@ dri2_check_dma_buf_format(const _EGLImageAttribs *attrs)
    case DRM_FORMAT_NV21:
    case DRM_FORMAT_NV16:
    case DRM_FORMAT_NV61:
+   case DRM_FORMAT_P010:
       plane_n = 2;
       break;
    case DRM_FORMAT_YUV410:
