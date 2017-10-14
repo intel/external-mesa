@@ -160,6 +160,12 @@ static int convert_fourcc(int format, int *dri_components_p)
       format = __DRI_IMAGE_FORMAT_R8;
       dri_components = __DRI_IMAGE_COMPONENTS_Y_UV;
       break;
+   case __DRI_IMAGE_FOURCC_P010:
+   case __DRI_IMAGE_FOURCC_P012:
+   case __DRI_IMAGE_FOURCC_P016:
+      format = __DRI_IMAGE_FORMAT_R16;
+      dri_components = __DRI_IMAGE_COMPONENTS_Y_UV;
+      break;
    default:
       return -1;
    }
