@@ -71,6 +71,7 @@ struct droid_yuv_format {
 enum {
    HAL_PIXEL_FORMAT_NV12_Y_TILED_INTEL = 0x100,
    HAL_PIXEL_FORMAT_NV12 = 0x10F,
+   HAL_PIXEL_FORMAT_P010_INTEL = 0x110
 };
 
 /* The following table is used to look up a DRI image FourCC based
@@ -78,6 +79,7 @@ enum {
 static const struct droid_yuv_format droid_yuv_formats[] = {
    /* Native format, YCrCb, Chroma step, DRI image FourCC */
    { HAL_PIXEL_FORMAT_YCbCr_420_888, YCbCr, 2, DRM_FORMAT_NV12 },
+   { HAL_PIXEL_FORMAT_P010_INTEL,      YCbCr, 4, __DRI_IMAGE_FOURCC_P010 },
    { HAL_PIXEL_FORMAT_YCbCr_420_888, YCbCr, 1, DRM_FORMAT_YUV420 },
    { HAL_PIXEL_FORMAT_YCbCr_420_888, YCrCb, 1, DRM_FORMAT_YVU420 },
    { HAL_PIXEL_FORMAT_YV12,          YCrCb, 1, DRM_FORMAT_YVU420 },
@@ -975,7 +977,8 @@ droid_create_image_from_prime_fds_yuv(_EGLDisplay *disp, _EGLContext *ctx,
       assert(num_fds == expected_planes);
    }
 
-   if (ycbcr.chroma_step == 2) {
+   /* FIXME? we should not rely on chroma_step */
+   if (ycbcr.chroma_step == 2 || ycbcr.chroma_step == 4) {
       /* Semi-planar Y + CbCr or Y + CrCb format. */
       const EGLint attr_list_2plane[] = {
          EGL_WIDTH, buf->width,
