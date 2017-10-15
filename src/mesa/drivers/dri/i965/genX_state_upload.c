@@ -3832,7 +3832,8 @@ genX(upload_ps)(struct brw_context *brw)
 #endif
 
       if (prog_data->base.nr_params > 0 ||
-          prog_data->base.ubo_ranges[0].length > 0)
+          prog_data->base.ubo_ranges[0].length > 0 ||
+          prog_data->needs_gen9_ps_header_only_workaround)
          ps.PushConstantEnable = true;
 
 #if GEN_GEN < 8
