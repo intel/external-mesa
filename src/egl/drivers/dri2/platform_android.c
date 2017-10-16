@@ -842,7 +842,8 @@ droid_create_image_from_prime_fd_yuv(_EGLDisplay *disp, _EGLContext *ctx,
       return NULL;
    }
 
-   if (ycbcr.chroma_step == 2) {
+   /* FIXME? we should not rely on chroma_step */
+   if (ycbcr.chroma_step == 2 || ycbcr.chroma_step == 4) {
       /* Semi-planar Y + CbCr or Y + CrCb format. */
       const EGLint attr_list_2plane[] = {
          EGL_WIDTH, buf->width,
