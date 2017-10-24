@@ -1856,6 +1856,131 @@ read_shader(const gl_shader_stage stage, const char *source)
 #endif /* ENABLE_SHADER_CACHE */
 
 /**
+ * REPLACE, replace or remove
+ * INSERT, insert before line
+ */
+enum {
+   REPLACE = 0,
+   INSERT
+};
+
+/**
+ * Shader modifications.
+ */
+struct mod {
+   uint8_t type;
+   uint32_t line;
+   const char *data;
+};
+
+struct mod_db {
+        const char *sha;
+        const struct mod list[64];
+} db[] = {
+#include "glsl_modifications.c"
+};
+
+static int mod_cmp(const void *a, const void *b)
+{
+   const struct mod_db *sa = (const struct mod_db *) a;
+   const struct mod_db *sb = (const struct mod_db *) b;
+
+   return strcmp(sa->sha, sb->sha);
+}
+
+static int scmp(const void *a, const void *b)
+{
+   const char *sa = (const char *) a;
+   const struct mod_db *sb = (const struct mod_db *) b;
+
+   return strcmp(sa, sb->sha);
+}
+
+/**
+ * Implementation of small line based parser that can
+ * insert/replace/delete lines from given shader source.
+ *
+ */
+static char *
+modifications(const char *source)
+{
+   char sha_str[64];
+   unsigned char sha[20];
+   _mesa_sha1_compute(source, strlen(source), sha);
+   _mesa_sha1_format(sha_str, sha);
+
+   /* no newlines, not compatible */
+   if (!strchr(source, '\n'))
+      return (char*)source;
+
+   /* TODO - move one time init to context initialization */
+   static bool init = false;
+   if (!init) {
+      qsort(db, ARRAY_SIZE(db), sizeof(struct mod_db), mod_cmp);
+      init = true;
+   }
+
+   const struct mod *modifications = NULL;
+
+   /* check if any modifications available */
+   struct mod_db *dbp =
+      bsearch(sha_str, db, ARRAY_SIZE(db), sizeof(struct mod_db), scmp);
+
+   if (dbp)
+      modifications = dbp->list;
+
+   /* no modifications, return source as is */
+   if (!modifications)
+      return (char*) source;
+
+   char *str = ralloc_asprintf(NULL, "");
+
+   /* move cursor through shader lines */
+   unsigned line = 1;
+   const char *cur = source;
+   while (strchr(cur, '\n')) {
+      const char *end = strchr(cur, '\n');
+
+      char *current = (char*) malloc ((end - cur) + 1);
+
+      strncpy(current, cur, end - cur);
+      current[end - cur] = '\0';
+
+      bool match = false;
+
+      /* iterate list of modifications for this shader */
+      const struct mod *list = modifications;
+      while (list->line) {
+         if (list->line == line) {
+            match = true;
+            ralloc_asprintf_append(&str, "%s\n", list->data);
+
+            if (list->type != REPLACE)
+               ralloc_asprintf_append(&str, "%s\n", current);
+         }
+         list++;
+      }
+
+      if (!match)
+         ralloc_asprintf_append(&str, "%s\n", current);
+
+      free(current);
+
+      cur = end + 1;
+      line++;
+   }
+
+   /* free original source and return changed one */
+   free((char*)source);
+
+   char *result = strdup(str);
+   ralloc_free(str);
+
+   return (char *) result;
+}
+
+
+/**
  * Called via glShaderSource() and glShaderSourceARB() API functions.
  * Basically, concatenate the source code strings into one long string
  * and pass it to _mesa_shader_source().
@@ -1942,6 +2067,8 @@ shader_source(struct gl_context *ctx, GLuint shaderObj, GLsizei count,
       source = replacement;
    }
 #endif /* ENABLE_SHADER_CACHE */
+
+   source = modifications(source);
 
    set_shader_source(sh, source);
 
