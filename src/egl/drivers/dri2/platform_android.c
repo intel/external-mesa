@@ -476,6 +476,18 @@ droid_destroy_surface(_EGLDriver *drv, _EGLDisplay *disp, _EGLSurface *surf)
    return EGL_TRUE;
 }
 
+static EGLBoolean droid_swap_interval(_EGLDriver *drv, _EGLDisplay *dpy,
+        _EGLSurface *surf, EGLint interval) {
+
+   struct dri2_egl_surface *dri2_surf = dri2_egl_surface(surf);
+   struct ANativeWindow *window = dri2_surf->window;
+   if (window->setSwapInterval(window, interval)) {
+      return EGL_FALSE;
+   }
+   surf->SwapInterval = interval;
+   return EGL_TRUE;
+}
+
 static int
 update_buffers(struct dri2_egl_surface *dri2_surf)
 {
@@ -1300,6 +1312,7 @@ static const struct dri2_egl_display_vtbl droid_display_vtbl = {
    .swap_buffers = droid_swap_buffers,
    .swap_buffers_with_damage = dri2_fallback_swap_buffers_with_damage, /* Android implements the function */
    .swap_buffers_region = dri2_fallback_swap_buffers_region,
+   .swap_interval = droid_swap_interval,
 #if ANDROID_API_LEVEL >= 23
    .set_damage_region = droid_set_damage_region,
 #else
@@ -1442,6 +1455,8 @@ dri2_initialize_android(_EGLDriver *drv, _EGLDisplay *dpy)
    }
 
    dri2_setup_screen(dpy);
+
+   dri2_setup_swap_interval(dpy, 1);
 
    if (!droid_add_configs_for_visuals(drv, dpy)) {
       err = "DRI2: failed to add configs";
