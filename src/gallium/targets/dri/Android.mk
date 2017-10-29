@@ -39,10 +39,11 @@ LOCAL_LDFLAGS := \
 	-Wl,--version-script=$(LOCAL_PATH)/dri.sym \
 	-Wl,--undefined-version
 
+LOCAL_STATIC_LIBRARIES := libexpat
+
 LOCAL_SHARED_LIBRARIES := \
 	libdl \
 	libglapi \
-	libexpat \
 	libz
 
 $(foreach d, $(MESA_BUILD_GALLIUM), $(eval LOCAL_CFLAGS += $(patsubst HAVE_%,-D%,$(d))))
