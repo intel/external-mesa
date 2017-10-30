@@ -44,12 +44,12 @@ MESA_DRI_WHOLE_STATIC_LIBRARIES := \
 	libmesa_megadriver_stub \
 	libmesa_dri_common \
 	libmesa_dricore \
-	libmesa_util
+	libmesa_util \
+	libexpat
 
 MESA_DRI_SHARED_LIBRARIES := \
 	libcutils \
 	libdl \
-	libexpat \
 	libglapi \
 	liblog \
 	libz

@@ -41,8 +41,7 @@ LOCAL_C_INCLUDES := \
 	$(MESA_TOP)/src/gallium/include \
 	$(MESA_TOP)/src/gallium/auxiliary
 
-LOCAL_SHARED_LIBRARIES := \
-	libexpat
+LOCAL_STATIC_LIBRARIES := libexpat
 
 LOCAL_MODULE := libmesa_util
 
