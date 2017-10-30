@@ -49,11 +49,20 @@ MESA_DRI_WHOLE_STATIC_LIBRARIES := \
 MESA_DRI_SHARED_LIBRARIES := \
 	libcutils \
 	libdl \
-	libexpat \
 	libglapi \
 	liblog \
 	libz
+# Obtain Android Version
+ANDROID_VERSION := $(word 1, $(subst ., , $(PLATFORM_VERSION)))
 
+# If Android version >=8 MESA should static link libexpat else should dynamic link
+ifeq ($(shell test $(ANDROID_VERSION) -ge 8; echo $$?), 0)
+MESA_DRI_WHOLE_STATIC_LIBRARIES += \
+	libexpat
+else
+MESA_DRI_SHARED_LIBRARIES += \
+	libexpat
+endif
 #-----------------------------------------------
 # Build drivers and libmesa_dri_common
 
