@@ -42,8 +42,16 @@ LOCAL_LDFLAGS := \
 LOCAL_SHARED_LIBRARIES := \
 	libdl \
 	libglapi \
-	libexpat \
 	libz
+
+# Android sdk versions >=26 MESA should static link libexpat while <26 should dynamic link
+ifeq ($(filter 23 24 25,$(ANDROID_API_LEVEL)),)
+LOCAL_SHARED_LIBRARIES += \
+	libexpat
+else
+LOCAL_STATIC_LIBRARIES := \
+	libexpat
+endif
 
 $(foreach d, $(MESA_BUILD_GALLIUM), $(eval LOCAL_CFLAGS += $(patsubst HAVE_%,-D%,$(d))))
 
