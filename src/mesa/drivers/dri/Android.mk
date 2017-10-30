@@ -49,10 +49,17 @@ MESA_DRI_WHOLE_STATIC_LIBRARIES := \
 MESA_DRI_SHARED_LIBRARIES := \
 	libcutils \
 	libdl \
-	libexpat \
 	libglapi \
 	liblog \
 	libz
+# Android sdk versions >=26 MESA should static link libexpat while <26 should dynamic link
+ifeq ($(filter 23 24 25,$(ANDROID_API_LEVEL)),)
+MESA_DRI_SHARED_LIBRARIES += \
+	libexpat
+else
+MESA_DRI_WHOLE_STATIC_LIBRARIES += \
+	libexpat
+endif
 
 #-----------------------------------------------
 # Build drivers and libmesa_dri_common
