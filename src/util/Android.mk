@@ -41,8 +41,12 @@ LOCAL_C_INCLUDES := \
 	$(MESA_TOP)/src/gallium/include \
 	$(MESA_TOP)/src/gallium/auxiliary
 
-LOCAL_SHARED_LIBRARIES := \
-	libexpat
+# Android sdk versions >=26 MESA should static link libexpat while <26 should dynamic link
+ifeq ($(filter 23 24 25, $(PLATFORM_SDK_VERSION)),)
+LOCAL_SHARED_LIBRARIES := libexpat
+else
+LOCAL_STATIC_LIBRARIES := libexpat
+endif
 
 LOCAL_MODULE := libmesa_util
 
