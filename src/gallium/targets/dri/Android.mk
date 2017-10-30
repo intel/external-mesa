@@ -43,8 +43,16 @@ LOCAL_SHARED_LIBRARIES := \
 	libbacktrace \
 	libdl \
 	libglapi \
-	libexpat \
 	libz
+
+# If Android version >=8 MESA should static link libexpat else should dynamic link
+ifeq ($(shell test $(PLATFORM_SDK_VERSION) -ge 27; echo $$?), 0)
+LOCAL_STATIC_LIBRARIES := \
+	libexpat
+else
+LOCAL_SHARED_LIBRARIES += \
+	libexpat
+endif
 
 $(foreach d, $(MESA_BUILD_GALLIUM), $(eval LOCAL_CFLAGS += $(patsubst HAVE_%,-D%,$(d))))
 
