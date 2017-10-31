@@ -37,6 +37,7 @@ intermediates := $(call local-generated-sources-dir)
 
 LOCAL_C_INCLUDES := \
 	$(MESA_TOP)/include/vulkan \
+	frameworks/native/libs/nativebase/include \
 	frameworks/native/libs/nativewindow/include \
 	frameworks/native/libs/arect/include
 
