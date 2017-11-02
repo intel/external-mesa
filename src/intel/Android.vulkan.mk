@@ -39,6 +39,7 @@ VULKAN_COMMON_INCLUDES := \
 	$(MESA_TOP)/include/drm-uapi \
 	$(MESA_TOP)/src/intel/vulkan \
 	frameworks/native/vulkan/include \
+	frameworks/native/libs/nativebase/include \
 	frameworks/native/libs/nativewindow/include \
 	frameworks/native/libs/arect/include
 
