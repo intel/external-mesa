@@ -52,15 +52,19 @@ MESA_DRI_SHARED_LIBRARIES := \
 	libglapi \
 	liblog \
 	libz
-# Android sdk versions >=26 MESA should static link libexpat while <26 should dynamic link
-ifeq ($(filter 23 24 25,$(ANDROID_API_LEVEL)),)
-MESA_DRI_SHARED_LIBRARIES += \
-	libexpat
-else
+# Obtain Android Version
+ANDROID_VERSION := $(word 1, $(subst ., , $(PLATFORM_VERSION)))
+
+# If Android version >=8 MESA should static link libexpat else should dynamic link
+ifeq ($(shell test $(ANDROID_VERSION) -ge 8; echo $$?), 0)
 MESA_DRI_WHOLE_STATIC_LIBRARIES += \
 	libexpat
+ $(error "kkadiyal $(ANDROID_VERSION) --- expected >=8")
+else
+MESA_DRI_SHARED_LIBRARIES += \
+	libexpat
+ $(error "kkadiyal $(ANDROID_VERSION) --- expected <8")
 endif
-
 #-----------------------------------------------
 # Build drivers and libmesa_dri_common
 
