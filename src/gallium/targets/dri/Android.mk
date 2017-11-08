@@ -44,11 +44,8 @@ LOCAL_SHARED_LIBRARIES := \
 	libglapi \
 	libz
 
-# Obtain Android Version
-ANDROID_VERSION := $(word 1, $(subst ., , $(PLATFORM_VERSION)))
-
 # If Android version >=8 MESA should static link libexpat else should dynamic link
-ifeq ($(shell test $(ANDROID_VERSION) -ge 8; echo $$?), 0)
+ifeq ($(shell test $(PLATFORM_SDK_VERSION) -ge 27; echo $$?), 0)
 LOCAL_STATIC_LIBRARIES := \
 	libexpat
 else
