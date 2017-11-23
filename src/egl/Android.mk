@@ -85,6 +85,10 @@ ifneq ($(MESA_BUILD_GALLIUM),)
 LOCAL_REQUIRED_MODULES += gallium_dri
 endif
 
+ifeq ($(shell test $(PLATFORM_SDK_VERSION) -ge 27; echo $$?), 0)
+LOCAL_HEADER_LIBRARIES += libnativebase_headers
+endif
+
 LOCAL_MODULE := libGLES_mesa
 LOCAL_MODULE_RELATIVE_PATH := egl
 
