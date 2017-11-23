@@ -32,7 +32,7 @@ include $(LOCAL_PATH)/Makefile.sources
 include $(CLEAR_VARS)
 LOCAL_MODULE := libmesa_vulkan_util
 LOCAL_MODULE_CLASS := STATIC_LIBRARIES
-
+LOCAL_HEADER_LIBRARIES += libcutils_headers libsystem_headers
 intermediates := $(call local-generated-sources-dir)
 
 LOCAL_C_INCLUDES := \
