@@ -114,7 +114,7 @@ build_id_find_nhdr_for_addr(const void *addr)
 unsigned
 build_id_length(const struct build_id_note *note)
 {
-   return note->nhdr.n_descsz;
+   return note? note->nhdr.n_descsz: 0;
 }
 
 const uint8_t *
