@@ -32,12 +32,15 @@ include $(LOCAL_PATH)/Makefile.sources
 include $(CLEAR_VARS)
 LOCAL_MODULE := libmesa_vulkan_util
 LOCAL_MODULE_CLASS := STATIC_LIBRARIES
-
+LOCAL_HEADER_LIBRARIES += libcutils_headers libsystem_headers
 intermediates := $(call local-generated-sources-dir)
 
 LOCAL_C_INCLUDES := \
 	$(MESA_TOP)/include/vulkan \
-	$(MESA_TOP)/src/vulkan/util
+	$(MESA_TOP)/src/vulkan/util \
+	frameworks/native/libs/nativebase/include \
+	frameworks/native/libs/nativewindow/include \
+	frameworks/native/libs/arect/include
 
 LOCAL_GENERATED_SOURCES := $(addprefix $(intermediates)/, \
 	$(VULKAN_UTIL_GENERATED_FILES))
