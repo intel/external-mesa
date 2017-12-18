@@ -37,7 +37,9 @@ intermediates := $(call local-generated-sources-dir)
 
 LOCAL_C_INCLUDES := \
 	$(MESA_TOP)/include/vulkan \
-	$(MESA_TOP)/src/vulkan/util
+	$(MESA_TOP)/src/vulkan/util \
+	frameworks/native/libs/nativewindow/include \
+	frameworks/native/libs/arect/include
 
 LOCAL_GENERATED_SOURCES := $(addprefix $(intermediates)/, \
 	$(VULKAN_UTIL_GENERATED_FILES))
