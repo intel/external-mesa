@@ -38,7 +38,10 @@ VULKAN_COMMON_INCLUDES := \
 	$(MESA_TOP)/src/intel \
 	$(MESA_TOP)/include/drm-uapi \
 	$(MESA_TOP)/src/intel/vulkan \
-	frameworks/native/vulkan/include
+	frameworks/native/vulkan/include \
+	frameworks/native/libs/nativebase/include \
+	frameworks/native/libs/nativewindow/include \
+	frameworks/native/libs/arect/include
 
 # libmesa_anv_entrypoints with header and dummy.c
 #
@@ -75,6 +78,8 @@ LOCAL_EXPORT_C_INCLUDE_DIRS := \
 
 LOCAL_SHARED_LIBRARIES := libdrm
 
+LOCAL_HEADER_LIBRARIES += libcutils_headers libhardware_headers
+
 include $(MESA_COMMON_MK)
 include $(BUILD_STATIC_LIBRARY)
 
@@ -108,6 +113,8 @@ LOCAL_WHOLE_STATIC_LIBRARIES := libmesa_anv_entrypoints libmesa_genxml
 
 LOCAL_SHARED_LIBRARIES := $(ANV_SHARED_LIBRARIES)
 
+LOCAL_HEADER_LIBRARIES += libcutils_headers libhardware_headers
+
 include $(MESA_COMMON_MK)
 include $(BUILD_STATIC_LIBRARY)
 
@@ -121,12 +128,14 @@ LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 
 LOCAL_SRC_FILES := $(VULKAN_GEN75_FILES)
 LOCAL_CFLAGS := -DGEN_VERSIONx10=75
-
+LOCAL_HEADER_LIBRARIES += libcutils_headers libsystem_headers
 LOCAL_C_INCLUDES := $(ANV_INCLUDES)
 
 LOCAL_WHOLE_STATIC_LIBRARIES := libmesa_anv_entrypoints libmesa_genxml
 
 LOCAL_SHARED_LIBRARIES := $(ANV_SHARED_LIBRARIES)
+
+LOCAL_HEADER_LIBRARIES += libcutils_headers libhardware_headers
 
 include $(MESA_COMMON_MK)
 include $(BUILD_STATIC_LIBRARY)
@@ -141,12 +150,14 @@ LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 
 LOCAL_SRC_FILES := $(VULKAN_GEN8_FILES)
 LOCAL_CFLAGS := -DGEN_VERSIONx10=80
-
+LOCAL_HEADER_LIBRARIES += libcutils_headers libsystem_headers
 LOCAL_C_INCLUDES := $(ANV_INCLUDES)
 
 LOCAL_WHOLE_STATIC_LIBRARIES := libmesa_anv_entrypoints libmesa_genxml
 
 LOCAL_SHARED_LIBRARIES := $(ANV_SHARED_LIBRARIES)
+
+LOCAL_HEADER_LIBRARIES += libcutils_headers libhardware_headers
 
 include $(MESA_COMMON_MK)
 include $(BUILD_STATIC_LIBRARY)
@@ -161,12 +172,14 @@ LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 
 LOCAL_SRC_FILES := $(VULKAN_GEN9_FILES)
 LOCAL_CFLAGS := -DGEN_VERSIONx10=90
-
+LOCAL_HEADER_LIBRARIES += libcutils_headers libsystem_headers
 LOCAL_C_INCLUDES := $(ANV_INCLUDES)
 
 LOCAL_WHOLE_STATIC_LIBRARIES := libmesa_anv_entrypoints libmesa_genxml
 
 LOCAL_SHARED_LIBRARIES := $(ANV_SHARED_LIBRARIES)
+
+LOCAL_HEADER_LIBRARIES += libcutils_headers libhardware_headers
 
 include $(MESA_COMMON_MK)
 include $(BUILD_STATIC_LIBRARY)
@@ -181,12 +194,14 @@ LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 
 LOCAL_SRC_FILES := $(VULKAN_GEN10_FILES)
 LOCAL_CFLAGS := -DGEN_VERSIONx10=100
-
+LOCAL_HEADER_LIBRARIES += libcutils_headers libsystem_headers
 LOCAL_C_INCLUDES := $(ANV_INCLUDES)
 
 LOCAL_WHOLE_STATIC_LIBRARIES := libmesa_anv_entrypoints libmesa_genxml
 
 LOCAL_SHARED_LIBRARIES := $(ANV_SHARED_LIBRARIES)
+
+LOCAL_HEADER_LIBRARIES += libcutils_headers libhardware_headers
 
 include $(MESA_COMMON_MK)
 include $(BUILD_STATIC_LIBRARY)
@@ -207,6 +222,8 @@ LOCAL_C_INCLUDES := $(ANV_INCLUDES)
 LOCAL_WHOLE_STATIC_LIBRARIES := libmesa_anv_entrypoints libmesa_genxml
 
 LOCAL_SHARED_LIBRARIES := $(ANV_SHARED_LIBRARIES)
+
+LOCAL_HEADER_LIBRARIES += libcutils_headers libhardware_headers
 
 include $(MESA_COMMON_MK)
 include $(BUILD_STATIC_LIBRARY)
@@ -264,6 +281,8 @@ $(intermediates)/vulkan/anv_extensions.h:
 
 LOCAL_SHARED_LIBRARIES := $(ANV_SHARED_LIBRARIES)
 
+LOCAL_HEADER_LIBRARIES += libcutils_headers libhardware_headers
+
 include $(MESA_COMMON_MK)
 include $(BUILD_STATIC_LIBRARY)
 
@@ -312,6 +331,8 @@ LOCAL_WHOLE_STATIC_LIBRARIES := \
 	libmesa_anv_entrypoints
 
 LOCAL_SHARED_LIBRARIES := $(ANV_SHARED_LIBRARIES) libz libsync liblog
+
+LOCAL_HEADER_LIBRARIES += libcutils_headers libhardware_headers
 
 include $(MESA_COMMON_MK)
 include $(BUILD_SHARED_LIBRARY)
