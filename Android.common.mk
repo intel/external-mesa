@@ -88,7 +88,8 @@ LOCAL_CPPFLAGS += \
 	-Wno-non-virtual-dtor \
 	-Wno-delete-non-virtual-dtor \
 	-Wno-overloaded-virtual \
-	-Wno-missing-braces
+	-Wno-missing-braces \
+	-Wno-deprecated-register
 
 # mesa requires at least c99 compiler
 LOCAL_CONLYFLAGS += \
