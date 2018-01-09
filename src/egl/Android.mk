@@ -64,6 +64,10 @@ LOCAL_SHARED_LIBRARIES += libgralloc_drm
 LOCAL_CFLAGS += -DHAS_GRALLOC_DRM_HEADERS
 endif
 
+ifeq ($(strip $(BOARD_USES_GRALLOC1)),true)
+LOCAL_CFLAGS += -DHAVE_GRALLOC1
+endif
+
 ifeq ($(filter $(MESA_ANDROID_MAJOR_VERSION), 4 5 6 7),)
 LOCAL_SHARED_LIBRARIES += libnativewindow
 endif
