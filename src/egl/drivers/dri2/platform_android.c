@@ -640,6 +640,31 @@ droid_swap_buffers(_EGLDriver *drv, _EGLDisplay *disp, _EGLSurface *draw)
    return EGL_TRUE;
 }
 
+static int get_ycbcr_from_flexlayout(struct android_flex_layout *outFlexLayout, struct android_ycbcr *ycbcr)
+{
+
+    for( int i = 0; i < outFlexLayout->num_planes; i++) {
+       switch(outFlexLayout->planes[i].component){
+         case FLEX_COMPONENT_Y:
+             ycbcr->y = outFlexLayout->planes[i].top_left;
+             ycbcr->ystride = outFlexLayout->planes[i].h_increment;
+         break;
+         case FLEX_COMPONENT_Cb:
+             ycbcr->cb = outFlexLayout->planes[i].top_left;
+             ycbcr->cstride = outFlexLayout->planes[i].h_increment;
+         break;
+         case FLEX_COMPONENT_Cr:
+             ycbcr->cr = outFlexLayout->planes[i].top_left;
+             ycbcr->chroma_step = outFlexLayout->planes[i].h_increment;
+         break;
+         default:
+             _eglLog(_EGL_WARNING,"unknown component 0x%x", __func__, outFlexLayout->planes[i].component);
+         break;
+       }
+  }
+  return 0;
+}
+
 #if ANDROID_API_LEVEL >= 23
 static EGLBoolean
 droid_set_damage_region(_EGLDriver *drv,
@@ -683,30 +708,59 @@ droid_create_image_from_prime_fd_yuv(_EGLDisplay *disp, _EGLContext *ctx,
 {
    struct dri2_egl_display *dri2_dpy = dri2_egl_display(disp);
    struct android_ycbcr ycbcr;
+   struct android_flex_layout outFlexLayout;
+   gralloc1_rect_t accessRegion;
    size_t offsets[3];
    size_t pitches[3];
    int is_ycrcb;
    int fourcc;
    int ret;
 
-   if (!dri2_dpy->gralloc->lock_ycbcr) {
-      _eglLog(_EGL_WARNING, "Gralloc does not support lock_ycbcr");
-      return NULL;
-   }
-
    memset(&ycbcr, 0, sizeof(ycbcr));
-   ret = dri2_dpy->gralloc->lock_ycbcr(dri2_dpy->gralloc, buf->handle,
-                                       0, 0, 0, 0, 0, &ycbcr);
-   if (ret) {
-      /* HACK: See droid_create_image_from_prime_fd() and
-       * https://issuetracker.google.com/32077885.*/
-      if (buf->format == HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED)
-         return NULL;
 
-      _eglLog(_EGL_WARNING, "gralloc->lock_ycbcr failed: %d", ret);
-      return NULL;
-   }
-   dri2_dpy->gralloc->unlock(dri2_dpy->gralloc, buf->handle);
+   if(dri2_dpy->gralloc_version == HARDWARE_MODULE_API_VERSION(1, 0)) {
+     if (!dri2_dpy->pfn_lockflex) {
+        _eglLog(_EGL_WARNING, "Gralloc does not support lockflex");
+        return NULL;
+     }
+
+     ret = dri2_dpy->pfn_lockflex(dri2_dpy->gralloc1_dvc, buf->handle,
+                                       0, 0, &accessRegion, &outFlexLayout, 0);
+     if (ret) {
+        _eglLog(_EGL_WARNING, "gralloc->lockflex failed: %d", ret);
+        return NULL;
+     }
+     ret = get_ycbcr_from_flexlayout(&outFlexLayout, &ycbcr);
+     if (ret) {
+        _eglLog(_EGL_WARNING, "gralloc->lockflex failed: %d", ret);
+        return NULL;
+     }
+
+   } else {
+
+     const gralloc_module_t *gralloc0;
+     gralloc0 = dri2_dpy->gralloc;
+
+     if (!gralloc0->lock_ycbcr) {
+        _eglLog(_EGL_WARNING, "Gralloc does not support lock_ycbcr");
+        return NULL;
+     }
+
+     ret = gralloc0->lock_ycbcr(gralloc0, buf->handle,
+                                        0, 0, 0, 0, 0, &ycbcr);
+
+     if (ret) {
+        /* HACK: See droid_create_image_from_prime_fd() and
+         * https://issuetracker.google.com/32077885.*/
+        if (buf->format == HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED)
+           return NULL;
+
+        _eglLog(_EGL_WARNING, "gralloc->lock_ycbcr failed: %d", ret);
+        return NULL;
+     }
+
+     gralloc0->unlock(dri2_dpy->gralloc, buf->handle);
+  }
 
    /* When lock_ycbcr's usage argument contains no SW_READ/WRITE flags
     * it will return the .y/.cb/.cr pointers based on a NULL pointer,
@@ -1105,10 +1159,12 @@ droid_open_device(struct dri2_egl_display *dri2_dpy)
 {
    int fd = -1, err = -EINVAL;
 
-   if (dri2_dpy->gralloc->perform)
-         err = dri2_dpy->gralloc->perform(dri2_dpy->gralloc,
-                                          GRALLOC_MODULE_PERFORM_GET_DRM_FD,
-                                          &fd);
+   const gralloc_module_t *gralloc0;
+   gralloc0 = dri2_dpy->gralloc;
+
+   if (gralloc0->perform)
+         err = gralloc0->perform(gralloc0, GRALLOC_MODULE_PERFORM_GET_DRM_FD, &fd);
+
    if (err || fd < 0) {
       _eglLog(_EGL_DEBUG, "fail to get drm fd");
       fd = -1;
@@ -1217,6 +1273,7 @@ dri2_initialize_android(_EGLDriver *drv, _EGLDisplay *disp)
 {
    struct dri2_egl_display *dri2_dpy;
    const char *err;
+   hw_device_t *device;
    int ret;
 
    /* Not supported yet */
@@ -1237,9 +1294,25 @@ dri2_initialize_android(_EGLDriver *drv, _EGLDisplay *disp)
       goto cleanup;
    }
 
+   dri2_dpy->gralloc_version = dri2_dpy->gralloc->module_api_version;
+
+   if (dri2_dpy->gralloc_version == HARDWARE_MODULE_API_VERSION(1, 0)) {
+      ret = dri2_dpy->gralloc->methods->open(dri2_dpy->gralloc, GRALLOC_HARDWARE_MODULE_ID, &device);
+      if (ret) {
+        err = "Failed to open hw_device device";
+        goto cleanup;
+      } else {
+        dri2_dpy->gralloc1_dvc = (gralloc1_device_t *)device;
+
+        dri2_dpy->pfn_lockflex = (GRALLOC1_PFN_LOCK_FLEX)\
+             dri2_dpy->gralloc1_dvc->getFunction(dri2_dpy->gralloc1_dvc, GRALLOC1_FUNCTION_LOCK_FLEX);
+      }
+   }
+
    disp->DriverData = (void *) dri2_dpy;
 
-   dri2_dpy->fd = droid_open_device(dri2_dpy);
+   if(dri2_dpy->gralloc_version != HARDWARE_MODULE_API_VERSION(1, 0))
+       dri2_dpy->fd = droid_open_device(dri2_dpy);
    if (dri2_dpy->fd >= 0) {
       dri2_dpy->driver_name = loader_get_driver_for_fd(dri2_dpy->fd);
       if (dri2_dpy->driver_name == NULL) {
