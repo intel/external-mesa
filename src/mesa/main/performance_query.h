@@ -76,4 +76,7 @@ extern void GLAPIENTRY
 _mesa_GetPerfQueryDataINTEL(GLuint queryHandle, GLuint flags,
                             GLsizei dataSize, void *data, GLuint *bytesWritten);
 
+extern void GLAPIENTRY
+_mesa_SetPerfQueryConfigIdINTEL(GLuint configId);
+
 #endif
