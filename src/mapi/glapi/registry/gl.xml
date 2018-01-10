@@ -24667,6 +24667,10 @@ typedef unsigned int GLhandleARB;
             <param len="COMPSIZE(id,type)">const void *<name>addr</name></param>
         </command>
         <command>
+            <proto>void <name>glSetPerfQueryConfigIdINTEL</name></proto>
+            <param><ptype>GLuint</ptype> <name>configId</name></param>
+        </command>
+        <command>
             <proto>void <name>glSetMultisamplefvAMD</name></proto>
             <param><ptype>GLenum</ptype> <name>pname</name></param>
             <param><ptype>GLuint</ptype> <name>index</name></param>
