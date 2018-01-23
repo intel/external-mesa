@@ -132,8 +132,11 @@ _eglCreateThreadInfo(void)
 static void
 _eglDestroyThreadInfo(_EGLThreadInfo *t)
 {
-   if (t != &dummy_thread)
+   if (t != &dummy_thread){
+      _EGLThreadInfo *t2 = _eglGetCurrentThread();
+      t2->CurrentContext = t->CurrentContext;
       free(t);
+   }
 }
 
 
