@@ -355,6 +355,7 @@ public:
    unsigned size_read(int arg) const;
    bool can_do_source_mods(const struct gen_device_info *devinfo);
    bool can_change_types() const;
+   bool has_side_effects() const;
    bool has_source_and_destination_hazard() const;
 
    /**
@@ -374,6 +375,7 @@ public:
 
    uint8_t sources; /**< Number of fs_reg sources. */
 
+   bool last_rt:1;
    bool pi_noperspective:1;   /**< Pixel interpolator noperspective flag */
 };
 

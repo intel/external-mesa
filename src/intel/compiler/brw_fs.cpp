@@ -418,6 +418,12 @@ fs_inst::can_change_types() const
             !src[1].abs && !src[1].negate));
 }
 
+bool
+fs_inst::has_side_effects() const
+{
+   return this->eot || this->last_rt || backend_instruction::has_side_effects();
+}
+
 void
 fs_reg::init()
 {
@@ -3241,6 +3247,7 @@ fs_visitor::emit_repclear_shader()
       }
    }
    write->eot = true;
+   write->last_rt = true;
 
    calculate_cfg();
 
