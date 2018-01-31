@@ -3212,6 +3212,85 @@ fs_visitor::eliminate_find_live_channel()
    return progress;
 }
 
+static fs_reg
+setup_fb_write_header(const fs_builder &bld,
+                      const struct brw_wm_prog_data *prog_data,
+                      const brw_wm_prog_key *key,
+                      const fs_visitor::thread_payload &payload,
+                      unsigned target)
+{
+   const gen_device_info *devinfo = bld.shader->devinfo;
+   const fs_builder &ubld = bld.exec_all().group(8, 0);
+   const fs_reg header = ubld.vgrf(BRW_REGISTER_TYPE_UD, 2);
+
+   if (devinfo->gen >= 6) {
+      if (bld.group() / 16 == 1) {
+         const fs_reg header_sources[] = {
+            retype(brw_vec8_grf(0, 0), BRW_REGISTER_TYPE_UD),
+            retype(brw_vec8_grf(2, 0), BRW_REGISTER_TYPE_UD)
+         };
+         ubld.LOAD_PAYLOAD(header, header_sources,
+                           ARRAY_SIZE(header_sources), 0);
+      } else {
+         ubld.group(16, 0).MOV(header, retype(brw_vec8_grf(0, 0),
+                                              BRW_REGISTER_TYPE_UD));
+      }
+
+      /* Set "Source0 Alpha Present to RenderTarget" bit in message
+       * header.
+       */
+      if (target > 0 && key->replicate_alpha)
+         ubld.group(1, 0).OR(header, retype(brw_vec1_grf(0, 0),
+                                            BRW_REGISTER_TYPE_UD),
+                             brw_imm_ud(1 << 11));
+
+      /* Set the render target index for choosing BLEND_STATE. */
+      if (target > 0)
+         ubld.group(1, 0).MOV(horiz_offset(header, 2),
+                              brw_imm_ud(target));
+
+      /* Set computes stencil to render target */
+      if (prog_data->computed_stencil)
+         ubld.group(1, 0).OR(header,
+                             retype(brw_vec1_grf(0, 0),
+                                    BRW_REGISTER_TYPE_UD),
+                             brw_imm_ud(1 << 14));
+
+
+   } else {
+      assert(bld.group() < 16);
+      const fs_reg header_sources[] = {
+         retype(brw_vec8_grf(0, 0), BRW_REGISTER_TYPE_UD),
+         retype(brw_vec8_grf(1 /* XXX - payload.subspan_coord_reg[bld.group() / 16] */, 0),
+                BRW_REGISTER_TYPE_UD)
+      };
+      ubld.LOAD_PAYLOAD(header, header_sources, ARRAY_SIZE(header_sources), 0);
+
+      if (bld.group() / 16) {
+         assert(bld.group() < 16);
+         ubld.group(1, 0).MOV(header,
+                              retype(brw_vec1_grf(1 /* XXX - payload.subspan_coord_reg[1] */, 0),
+                                     BRW_REGISTER_TYPE_UD));
+         ubld.group(2, 0).MOV(horiz_offset(header, 14),
+                              retype(brw_vec2_grf(1, 6),
+                                     BRW_REGISTER_TYPE_UD));
+      }
+   }
+
+   /* On HSW, the GPU will use the predicate on SENDC, unless the header is
+    * present.
+    */
+   if (prog_data->uses_kill) {
+      assert(bld.group() < 16);
+      const fs_reg pixel_mask =
+         retype(horiz_offset(header, devinfo->gen >= 6 ? 15 : 0),
+                BRW_REGISTER_TYPE_UW);
+      ubld.group(1, 0).MOV(pixel_mask, brw_flag_reg(0, 1));
+   }
+
+   return header;
+}
+
 /**
  * Once we've generated code, try to convert normal FS_OPCODE_FB_WRITE
  * instructions to FS_OPCODE_REP_FB_WRITE.
@@ -3249,6 +3328,12 @@ fs_visitor::emit_repclear_shader()
    } else {
       assume(key->nr_color_regions > 0);
       for (int i = 0; i < key->nr_color_regions; ++i) {
+         const fs_reg header = setup_fb_write_header(
+            bld, brw_wm_prog_data(prog_data), key, payload, i);
+         bld.exec_all().group(16, 0)
+            .MOV(retype(brw_message_reg(base_mrf), BRW_REGISTER_TYPE_UD),
+                 header);
+
          write = bld.emit(FS_OPCODE_REP_FB_WRITE);
          write->saturate = key->clamp_fragment_color;
          write->base_mrf = base_mrf;
@@ -3264,6 +3349,7 @@ fs_visitor::emit_repclear_shader()
 
    assign_constant_locations();
    assign_curb_setup();
+   allocate_registers(16, false);
 
    /* Now that we have the uniform assigned, go ahead and force it to a vec4. */
    if (uniforms > 0) {
@@ -3969,6 +4055,7 @@ lower_fb_write_logical_send(const fs_builder &bld, fs_inst *inst,
    /* We can potentially have a message length of up to 15, so we have to set
     * base_mrf to either 0 or 1 in order to fit in m0..m15.
     */
+   fs_reg header;
    fs_reg sources[15];
    int header_size = 2, payload_header_size;
    unsigned length = 0;
@@ -3988,17 +4075,25 @@ lower_fb_write_logical_send(const fs_builder &bld, fs_inst *inst,
    }
 
    if (header_size != 0) {
-      assert(header_size == 2);
-      /* Allocate 2 registers for a header */
-      length += 2;
+      header = setup_fb_write_header(bld, prog_data, key, payload,
+                                     inst->target);
+
+      if (devinfo->gen >= 6) {
+         sources[length++] = header;
+         sources[length++] = byte_offset(header, REG_SIZE);
+      } else {
+         /* Allocate 2 registers for the header */
+         length += 2;
+      }
    }
 
-   if (payload.aa_dest_stencil_reg) {
+   if (payload.aa_dest_stencil_reg /* XXX - payload.aa_dest_stencil_reg[0]*/) {
       assert(inst->group < 16);
       sources[length] = fs_reg(VGRF, bld.shader->alloc.allocate(1));
       bld.group(8, 0).exec_all().annotate("FB write stencil/AA alpha")
          .MOV(sources[length],
-              fs_reg(brw_vec8_grf(payload.aa_dest_stencil_reg, 0)));
+              fs_reg(brw_vec8_grf(payload.aa_dest_stencil_reg
+                                  /* payload.aa_dest_stencil_reg[inst->group / 16] */, 0)));
       length++;
    }
 
@@ -4087,7 +4182,6 @@ lower_fb_write_logical_send(const fs_builder &bld, fs_inst *inst,
       load->dst = payload;
 
       inst->src[0] = payload;
-      inst->resize_sources(1);
    } else {
       /* Send from the MRF */
       load = bld.LOAD_PAYLOAD(fs_reg(MRF, 1, BRW_REGISTER_TYPE_F),
@@ -4099,10 +4193,11 @@ lower_fb_write_logical_send(const fs_builder &bld, fs_inst *inst,
       if (devinfo->gen < 6 && bld.dispatch_width() == 16)
          load->dst.nr |= BRW_MRF_COMPR4;
 
-      inst->resize_sources(0);
+      inst->src[0] = (devinfo->gen == 6 ? fs_reg() : header);
       inst->base_mrf = 1;
    }
 
+   inst->resize_sources(1);
    inst->opcode = FS_OPCODE_FB_WRITE;
    inst->mlen = regs_written(load);
    inst->header_size = header_size;

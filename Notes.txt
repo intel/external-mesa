@@ -4,3 +4,6 @@ Patch 0010 i965/fs: Fix Gen4-5 FB write AA data payload munging for non-EOT writ
 Patch 0011 i965/eu: Emit JMPI with exec_size 1 already applied in Mesa-master
    Already applied in Mesa master
 
+Patch 0018 i965/fs: Rework FB write header setup for SIMD32 and better scheduling.
+   Needed to change allocate_registers(false) to allocate_registers(16, false)
+   in fs_generator::emit_repclear_shader()
