@@ -1739,27 +1739,13 @@ emit_pixel_interpolater_send(const fs_builder &bld,
 {
    struct brw_wm_prog_data *wm_prog_data =
       brw_wm_prog_data(bld.shader->stage_prog_data);
-   fs_inst *inst;
-   fs_reg payload;
-   int mlen;
 
-   if (src.file == BAD_FILE) {
-      /* Dummy payload */
-      payload = bld.vgrf(BRW_REGISTER_TYPE_F, 1);
-      mlen = 1;
-   } else {
-      payload = src;
-      mlen = 2 * bld.dispatch_width() / 8;
-   }
-
-   inst = bld.emit(opcode, dst, payload, desc);
-   inst->mlen = mlen;
+   fs_inst *inst = bld.emit(opcode, dst, src, desc);
    /* 2 floats per slot returned */
    inst->size_written = 2 * dst.component_size(inst->exec_size);
    inst->pi_noperspective = interpolation == INTERP_MODE_NOPERSPECTIVE;
 
    wm_prog_data->pulls_bary = true;
-
    return inst;
 }
 
@@ -3429,7 +3415,7 @@ fs_visitor::nir_emit_fs_intrinsic(const fs_builder &bld,
                                             FS_OPCODE_INTERPOLATE_AT_SAMPLE,
                                             dest,
                                             fs_reg(), /* src */
-                                            msg_data,
+                                            component(msg_data, 0),
                                             interpolation);
             set_predicate(BRW_PREDICATE_NORMAL, inst);
 
