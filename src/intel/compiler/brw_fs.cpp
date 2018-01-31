@@ -976,6 +976,7 @@ fs_inst::flags_written() const
                             opcode != BRW_OPCODE_IF &&
                             opcode != BRW_OPCODE_WHILE)) ||
        opcode == FS_OPCODE_MOV_DISPATCH_TO_FLAGS ||
+       opcode == FS_OPCODE_FB_WRITE ||
        opcode == SHADER_OPCODE_FIND_LIVE_CHANNEL) {
       return flag_mask(this);
    } else {
