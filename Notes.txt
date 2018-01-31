@@ -1,0 +1,6 @@
+Patch 0010 i965/fs: Fix Gen4-5 FB write AA data payload munging for non-EOT writes.
+   Not clear if it needed to be applied
+
+Patch 0011 i965/eu: Emit JMPI with exec_size 1 already applied in Mesa-master
+   Already applied in Mesa master
+
