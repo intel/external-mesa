@@ -3349,7 +3349,11 @@ fs_visitor::emit_repclear_shader()
 
    assign_constant_locations();
    assign_curb_setup();
-   allocate_registers(16, false);
+   /* WARNING: the original SIMD32 series has this line added, in patch
+    * "i965/fs: Rework FB write header setup for SIMD32 and better scheduling."
+    * but giving this line makes bad things happen later.
+    */
+   // allocate_registers(16, false);
 
    /* Now that we have the uniform assigned, go ahead and force it to a vec4. */
    if (uniforms > 0) {
