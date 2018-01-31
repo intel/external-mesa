@@ -6,7 +6,8 @@ Patch 0011 i965/eu: Emit JMPI with exec_size 1 already applied in Mesa-master
 
 Patch 0018 i965/fs: Rework FB write header setup for SIMD32 and better scheduling.
    Needed to change allocate_registers(false) to allocate_registers(16, false)
-   in fs_generator::emit_repclear_shader()
+   in fs_generator::emit_repclear_shader(). Leaving this in made the shader
+   compiler crash from compiling blorp shaders. For now remove this.
 
 Patch 0032 965/fs: Implement 32-wide FS payload setup on Gen6+.
    Needed to change nir->info->XXX to nir->info.XXX in fs_vistor::setup_fs_payload_gen6().
