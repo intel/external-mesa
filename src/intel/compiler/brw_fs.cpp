@@ -6033,10 +6033,10 @@ fs_visitor::setup_fs_payload_gen6()
    assert(devinfo->gen >= 6);
 
    prog_data->uses_src_depth = prog_data->uses_src_w =
-      (nir->info->inputs_read & (1 << VARYING_SLOT_POS)) != 0;
+      (nir->info.inputs_read & (1 << VARYING_SLOT_POS)) != 0;
 
    prog_data->uses_sample_mask =
-      (nir->info->system_values_read & SYSTEM_BIT_SAMPLE_MASK_IN) != 0;
+      (nir->info.system_values_read & SYSTEM_BIT_SAMPLE_MASK_IN) != 0;
 
    /* From the Ivy Bridge PRM documentation for 3DSTATE_PS:
     *
@@ -6048,7 +6048,7 @@ fs_visitor::setup_fs_payload_gen6()
     * persample dispatch, we hard-code it to 0.5.
     */
    prog_data->uses_pos_offset = prog_data->persample_dispatch &&
-      (nir->info->system_values_read & SYSTEM_BIT_SAMPLE_POS);
+      (nir->info.system_values_read & SYSTEM_BIT_SAMPLE_POS);
 
    /* R0: PS thread payload header. */
    payload.num_regs++;
