@@ -901,10 +901,9 @@ brw_flag_reg(int reg, int subreg)
 }
 
 static inline struct brw_reg
-brw_flag_subreg(unsigned subreg)
+brw_flag_subreg(int subreg)
 {
-   return brw_uw1_reg(BRW_ARCHITECTURE_REGISTER_FILE,
-                      BRW_ARF_FLAG + subreg / 2, subreg % 2);
+   return brw_flag_reg(subreg / 2, subreg % 2);
 }
 
 /**

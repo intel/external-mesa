@@ -1813,6 +1813,8 @@ fs_generator::generate_code(const cfg_t *cfg, int dispatch_width)
       brw_set_default_access_mode(p, BRW_ALIGN_1);
       brw_set_default_predicate_control(p, inst->predicate);
       brw_set_default_predicate_inverse(p, inst->predicate_inverse);
+      const unsigned flag_subreg = inst->flag_subreg +
+         (devinfo->gen >= 7 ? 0 : inst->group / 16);      
       brw_set_default_flag_reg(p, inst->flag_subreg / 2, inst->flag_subreg % 2);
       brw_set_default_saturate(p, inst->saturate);
       brw_set_default_mask_control(p, inst->force_writemask_all);
