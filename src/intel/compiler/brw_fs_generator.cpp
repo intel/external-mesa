@@ -395,23 +395,26 @@ fs_generator::generate_fb_write(fs_inst *inst, struct brw_reg payload)
       struct brw_reg v1_null_ud = vec1(retype(brw_null_reg(), BRW_REGISTER_TYPE_UD));
 
       /* Check runtime bit to detect if we have to send AA data or not */
-      brw_push_insn_state(p);
-      brw_set_default_compression_control(p, BRW_COMPRESSION_NONE);
-      brw_set_default_exec_size(p, BRW_EXECUTE_1);
       brw_AND(p,
               v1_null_ud,
               retype(brw_vec1_grf(1, 6), BRW_REGISTER_TYPE_UD),
               brw_imm_ud(1<<26));
       brw_inst_set_cond_modifier(p->devinfo, brw_last_inst, BRW_CONDITIONAL_NZ);
+      brw_inst_set_qtr_control(p->devinfo, brw_last_inst, BRW_COMPRESSION_NONE);
 
-      int jmp = brw_JMPI(p, brw_imm_ud(0), BRW_PREDICATE_NORMAL) - p->store;
-      brw_pop_insn_state(p);
-      {
-         /* Don't send AA data */
-         fire_fb_write(inst, offset(payload, 1), implied_header, inst->mlen-1);
-      }
-      brw_land_fwd_jump(p, jmp);
+      /* Jump over the send without AA data if the bit was set. */
+      const unsigned skip_noaa_send =
+         brw_JMPI(p, brw_imm_ud(0), BRW_PREDICATE_NORMAL) - p->store;
+
+      fire_fb_write(inst, offset(payload, 1), implied_header, inst->mlen - 1);
+
+      /* Otherwise jump over the send with AA data. */
+      const unsigned skip_aa_send =
+         brw_JMPI(p, brw_imm_ud(0), BRW_PREDICATE_NONE) - p->store;
+
+      brw_land_fwd_jump(p, skip_noaa_send);
       fire_fb_write(inst, payload, implied_header, inst->mlen);
+      brw_land_fwd_jump(p, skip_aa_send);
    }
 }
 
