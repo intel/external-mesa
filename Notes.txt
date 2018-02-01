@@ -12,6 +12,9 @@ Patch 0018 i965/fs: Rework FB write header setup for SIMD32 and better schedulin
 Patch 0032 965/fs: Implement 32-wide FS payload setup on Gen6+.
    Needed to change nir->info->XXX to nir->info.XXX in fs_vistor::setup_fs_payload_gen6().
 
+Patch 44 HACK: i965/fs: Enable SIMD32 codegen for BLORP fragment shaders.
+   Needed to change shader->info->XXX to shader->info.XXX
+
 
 Patch 0042 State Setup for SIMD32 fragmetn shaders
     This patch had to be completely rewritten since the state uploads

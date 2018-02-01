@@ -7171,7 +7171,7 @@ brw_compile_fs(const struct brw_compiler *compiler, void *log_data,
    if (v8.max_dispatch_width >= 32 && !use_rep_send &&
        compiler->devinfo->gen >= 6 &&
        (INTEL_DEBUG & DEBUG_DO32 ||
-        strncmp(src_shader->info->name, "BLORP", 5) == 0)) {
+        strncmp(src_shader->info.name, "BLORP", 5) == 0)) {
       /* Try a SIMD32 compile */
       fs_visitor v32(compiler, log_data, mem_ctx, key,
                      &prog_data->base, prog, shader, 32,
