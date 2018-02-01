@@ -1560,19 +1560,16 @@ fs_generator::generate_varying_pull_constant_load_gen7(fs_inst *inst,
 void
 fs_generator::generate_mov_dispatch_to_flags(fs_inst *inst)
 {
-   struct brw_reg flags = brw_flag_subreg(inst->flag_subreg);
-   struct brw_reg dispatch_mask;
+   assert(devinfo->gen >= 6 || inst->exec_size <= 16);
 
-   if (devinfo->gen >= 6)
-      dispatch_mask = retype(brw_vec1_grf(1, 7), BRW_REGISTER_TYPE_UW);
-   else
-      dispatch_mask = retype(brw_vec1_grf(0, 0), BRW_REGISTER_TYPE_UW);
-
-   brw_push_insn_state(p);
-   brw_set_default_mask_control(p, BRW_MASK_DISABLE);
-   brw_set_default_exec_size(p, BRW_EXECUTE_1);
-   brw_MOV(p, flags, dispatch_mask);
-   brw_pop_insn_state(p);
+   for (unsigned i = 0; i < DIV_ROUND_UP(inst->exec_size, 16u); i++) {
+      const struct brw_reg flags = brw_flag_subreg(inst->flag_subreg + i);
+      const struct brw_reg dispatch_mask =
+         retype(devinfo->gen >= 6 ? brw_vec1_grf(1 + i, 7) : brw_vec1_grf(0, 0),
+                BRW_REGISTER_TYPE_UW);
+      brw_inst *insn = brw_MOV(p, flags, dispatch_mask);
+      brw_inst_set_mask_control(p->devinfo, insn, BRW_MASK_DISABLE);
+   }
 }
 
 void
