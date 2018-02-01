@@ -7132,9 +7132,9 @@ brw_compile_fs(const struct brw_compiler *compiler, void *log_data,
    prog_data->barycentric_interp_modes =
       brw_compute_barycentric_interp_modes(compiler->devinfo, shader);
 
-   cfg_t *simd8_cfg = NULL, *simd16_cfg = NULL;
-   uint8_t simd8_grf_start = 0, simd16_grf_start = 0;
-   unsigned simd8_grf_used = 0, simd16_grf_used = 0;
+   cfg_t *simd8_cfg = NULL, *simd16_cfg = NULL, *simd32_cfg = NULL;
+   uint8_t simd8_grf_start = 0, simd16_grf_start = 0, simd32_grf_start = 0;
+   unsigned simd8_grf_used = 0, simd16_grf_used = 0, simd32_grf_used = 0;
 
    fs_visitor v8(compiler, log_data, mem_ctx, key,
                  &prog_data->base, prog, shader, 8,
@@ -7168,6 +7168,24 @@ brw_compile_fs(const struct brw_compiler *compiler, void *log_data,
       }
    }
 
+   if (v8.max_dispatch_width >= 32 && !use_rep_send &&
+       (INTEL_DEBUG & DEBUG_DO32)) {
+      /* Try a SIMD32 compile */
+      fs_visitor v32(compiler, log_data, mem_ctx, key,
+                     &prog_data->base, prog, shader, 32,
+                     shader_time_index32);
+      v32.import_uniforms(&v8);
+      if (!v32.run_fs(allow_spilling, false)) {
+         compiler->shader_perf_log(log_data,
+                                   "SIMD32 shader failed to compile: %s",
+                                   v32.fail_msg);
+      } else {
+         simd32_cfg = v32.cfg;
+         simd32_grf_start = v32.payload.num_regs;
+         simd32_grf_used = v32.grf_used;
+      }
+   }
+
    /* When the caller requests a repclear shader, they want SIMD16-only */
    if (use_rep_send)
       simd8_cfg = NULL;
@@ -7177,8 +7195,21 @@ brw_compile_fs(const struct brw_compiler *compiler, void *log_data,
     * Instead, we just give them exactly one shader and we pick the widest one
     * available.
     */
-   if (compiler->devinfo->gen < 5 && simd16_cfg)
-      simd8_cfg = NULL;
+   if (compiler->devinfo->gen < 5) {
+      if (simd32_cfg || simd16_cfg)
+         simd8_cfg = NULL;
+      if (simd32_cfg)
+         simd16_cfg = NULL;
+   }
+
+   /* If computed depth is enabled SNB only allows SIMD8. */
+   if (compiler->devinfo->gen == 6 &&
+       prog_data->computed_depth_mode != BRW_PSCDEPTH_OFF)
+      assert(simd16_cfg == NULL && simd32_cfg == NULL);
+
+   /* XXX - Fix gen7 sample_id setup to handle either 4x or 8x MSAA. */
+   if (compiler->devinfo->gen == 7 && prog_data->persample_dispatch)
+      simd32_cfg = NULL;
 
    if (prog_data->persample_dispatch) {
       /* Starting with SandyBridge (where we first get MSAA), the different
@@ -7186,16 +7217,11 @@ brw_compile_fs(const struct brw_compiler *compiler, void *log_data,
        * through F (SNB PRM Vol. 2 Part 1 Section 7.7.1).  On all hardware
        * generations, the only configurations supporting persample dispatch
        * are are this in which only one dispatch width is enabled.
-       *
-       * If computed depth is enabled, SNB only allows SIMD8 while IVB+
-       * allow SIMD8 or SIMD16 so we choose SIMD16 if available.
        */
-      if (compiler->devinfo->gen == 6 &&
-          prog_data->computed_depth_mode != BRW_PSCDEPTH_OFF) {
-         simd16_cfg = NULL;
-      } else if (simd16_cfg) {
+      if (simd32_cfg || simd16_cfg)
          simd8_cfg = NULL;
-      }
+      if (simd32_cfg)
+         simd16_cfg = NULL;
    }
 
    /* We have to compute the flat inputs after the visitor is finished running
@@ -7220,18 +7246,32 @@ brw_compile_fs(const struct brw_compiler *compiler, void *log_data,
       g.generate_code(simd8_cfg, 8);
       prog_data->base.dispatch_grf_start_reg = simd8_grf_start;
       prog_data->reg_blocks_0 = brw_register_blocks(simd8_grf_used);
+   }
 
-      if (simd16_cfg) {
-         prog_data->dispatch_16 = true;
+   if (simd16_cfg) {
+      prog_data->dispatch_16 = true;
+      if (simd8_cfg || simd32_cfg) {
          prog_data->prog_offset_2 = g.generate_code(simd16_cfg, 16);
          prog_data->dispatch_grf_start_reg_2 = simd16_grf_start;
          prog_data->reg_blocks_2 = brw_register_blocks(simd16_grf_used);
+      } else {
+         g.generate_code(simd16_cfg, 16);
+         prog_data->base.dispatch_grf_start_reg = simd16_grf_start;
+         prog_data->reg_blocks_0 = brw_register_blocks(simd16_grf_used);
       }
-   } else if (simd16_cfg) {
-      prog_data->dispatch_16 = true;
-      g.generate_code(simd16_cfg, 16);
-      prog_data->base.dispatch_grf_start_reg = simd16_grf_start;
-      prog_data->reg_blocks_0 = brw_register_blocks(simd16_grf_used);
+   }
+
+   if (simd32_cfg) {
+      prog_data->dispatch_32 = true;
+      if (simd8_cfg || simd16_cfg) {
+         prog_data->prog_offset_1 = g.generate_code(simd32_cfg, 32);
+         prog_data->dispatch_grf_start_reg_1 = simd32_grf_start;
+         prog_data->reg_blocks_1 = brw_register_blocks(simd32_grf_used);
+      } else {
+         g.generate_code(simd32_cfg, 32);
+         prog_data->base.dispatch_grf_start_reg = simd32_grf_start;
+         prog_data->reg_blocks_0 = brw_register_blocks(simd32_grf_used);
+      }
    }
 
    return g.get_assembly();
