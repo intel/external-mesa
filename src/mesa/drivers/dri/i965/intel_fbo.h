@@ -238,7 +238,7 @@ void brw_cache_sets_clear(struct brw_context *brw);
 void brw_cache_flush_for_read(struct brw_context *brw, struct brw_bo *bo);
 void brw_cache_flush_for_render(struct brw_context *brw, struct brw_bo *bo,
                                 enum isl_format format,
-                                enum isl_aux_usage aux_usage);
+                                enum isl_aux_usage aux_usage, bool force);
 void brw_cache_flush_for_depth(struct brw_context *brw, struct brw_bo *bo);
 void brw_render_cache_add_bo(struct brw_context *brw, struct brw_bo *bo,
                              enum isl_format format,
