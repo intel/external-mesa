@@ -330,6 +330,12 @@ dump_perf_query_callback(GLuint id, void *query_void, void *brw_void)
           o->Active ? "Active," : (o->Ready ? "Ready," : "Pending,"),
           obj->pipeline_stats.bo ? "yes" : "no");
       break;
+   case NULL_RENDERER:
+      DBG("%4d: %-6s %-8s NULL_RENDERER\n",
+          id,
+          o->Used ? "Dirty," : "New,",
+          o->Active ? "Active," : (o->Ready ? "Ready," : "Pending,"));
+      break;
    default:
       unreachable("Unknown query type");
       break;
@@ -429,6 +435,10 @@ brw_get_perf_query_info(struct gl_context *ctx,
 
    case PIPELINE_STATS:
       *n_active = brw->perfquery.n_active_pipeline_stats_queries;
+      break;
+
+   case NULL_RENDERER:
+      *n_active = brw->perfquery.n_active_null_renderers;
       break;
 
    default:
@@ -1020,6 +1030,7 @@ brw_begin_perf_query(struct gl_context *ctx,
    struct brw_context *brw = brw_context(ctx);
    struct brw_perf_query_object *obj = brw_perf_query(o);
    const struct brw_perf_query_info *query = obj->query;
+   const struct gen_device_info *devinfo = &brw->screen->devinfo;
 
    /* We can assume the frontend hides mistaken attempts to Begin a
     * query object multiple times before its End. Similarly if an
@@ -1104,7 +1115,6 @@ brw_begin_perf_query(struct gl_context *ctx,
       /* If the OA counters aren't already on, enable them. */
       if (brw->perfquery.oa_stream_fd == -1) {
          __DRIscreen *screen = brw->screen->driScrnPriv;
-         const struct gen_device_info *devinfo = &brw->screen->devinfo;
 
          /* The period_exponent gives a sampling period as follows:
           *   sample_period = timestamp_period * 2^(period_exponent + 1)
@@ -1250,6 +1260,23 @@ brw_begin_perf_query(struct gl_context *ctx,
       ++brw->perfquery.n_active_pipeline_stats_queries;
       break;
 
+   case NULL_RENDERER:
+      ++brw->perfquery.n_active_null_renderers;
+      if (devinfo->gen >= 9) {
+         brw_load_register_imm32(brw, CS_DEBUG_MODE2,
+                                 REG_MASK(CSDBG2_3D_RENDERER_INSTRUCTION_DISABLE) |
+                                 CSDBG2_3D_RENDERER_INSTRUCTION_DISABLE);
+      } else {
+         brw_load_register_imm32(brw, INSTPM,
+                                 REG_MASK(INSTPM_3D_RENDERER_INSTRUCTION_DISABLE |
+                                          INSTPM_MEDIA_INSTRUCTION_DISABLE) |
+                                 INSTPM_3D_RENDERER_INSTRUCTION_DISABLE |
+                                 INSTPM_MEDIA_INSTRUCTION_DISABLE);
+      }
+      brw_emit_pipe_control_flush(brw,
+                                  PIPE_CONTROL_LRI_WRITE_IMMEDIATE);
+      break;
+
    default:
       unreachable("Unknown query type");
       break;
@@ -1270,6 +1297,7 @@ brw_end_perf_query(struct gl_context *ctx,
 {
    struct brw_context *brw = brw_context(ctx);
    struct brw_perf_query_object *obj = brw_perf_query(o);
+   const struct gen_device_info *devinfo = &brw->screen->devinfo;
 
    DBG("End(%d)\n", o->Id);
 
@@ -1312,6 +1340,21 @@ brw_end_perf_query(struct gl_context *ctx,
       --brw->perfquery.n_active_pipeline_stats_queries;
       break;
 
+   case NULL_RENDERER:
+      if (--brw->perfquery.n_active_null_renderers == 0) {
+         if (devinfo->gen >= 9) {
+            brw_load_register_imm32(brw, CS_DEBUG_MODE2,
+                                    REG_MASK(CSDBG2_3D_RENDERER_INSTRUCTION_DISABLE));
+         } else {
+            brw_load_register_imm32(brw, INSTPM,
+                                    REG_MASK(INSTPM_3D_RENDERER_INSTRUCTION_DISABLE |
+                                             INSTPM_MEDIA_INSTRUCTION_DISABLE));
+         }
+         brw_emit_pipe_control_flush(brw,
+                                     PIPE_CONTROL_LRI_WRITE_IMMEDIATE);
+      }
+      break;
+
    default:
       unreachable("Unknown query type");
       break;
@@ -1335,6 +1378,9 @@ brw_wait_perf_query(struct gl_context *ctx, struct gl_perf_query_object *o)
 
    case PIPELINE_STATS:
       bo = obj->pipeline_stats.bo;
+      break;
+
+   case NULL_RENDERER:
       break;
 
    default:
@@ -1387,6 +1433,8 @@ brw_is_perf_query_ready(struct gl_context *ctx,
       return (obj->pipeline_stats.bo &&
               !brw_batch_references(&brw->batch, obj->pipeline_stats.bo) &&
               !brw_bo_busy(obj->pipeline_stats.bo));
+   case NULL_RENDERER:
+      return true;
 
    default:
       unreachable("Unknown query type");
@@ -1602,6 +1650,9 @@ brw_get_perf_query_data(struct gl_context *ctx,
       written = get_pipeline_stats_data(brw, obj, data_size, (uint8_t *)data);
       break;
 
+   case NULL_RENDERER:
+      break;
+
    default:
       unreachable("Unknown query type");
       break;
@@ -1670,6 +1721,9 @@ brw_delete_perf_query(struct gl_context *ctx,
          brw_bo_unreference(obj->pipeline_stats.bo);
          obj->pipeline_stats.bo = NULL;
       }
+      break;
+
+   case NULL_RENDERER:
       break;
 
    default:
@@ -2152,6 +2206,15 @@ get_register_queries_function(const struct gen_device_info *devinfo)
    return NULL;
 }
 
+static void
+fill_null_renderer_perf_query_info(struct brw_context *brw,
+                                   struct brw_perf_query_info *query)
+{
+   query->kind = NULL_RENDERER;
+   query->name = "Intel_Null_Hardware_Query";
+   query->n_counters = 0;
+}
+
 static unsigned
 brw_init_perf_query_info(struct gl_context *ctx)
 {
@@ -2210,6 +2273,10 @@ brw_init_perf_query_info(struct gl_context *ctx)
          enumerate_sysfs_metrics(brw);
 
       brw_perf_query_register_mdapi_oa_query(brw);
+
+      struct brw_perf_query_info *null_query =
+         brw_perf_query_append_query_info(brw);
+      fill_null_renderer_perf_query_info(brw, null_query);
    }
 
    brw->perfquery.unaccumulated =
