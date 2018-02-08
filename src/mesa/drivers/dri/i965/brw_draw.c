@@ -561,7 +561,7 @@ brw_predraw_resolve_framebuffer(struct brw_context *brw,
                                    aux_usage);
 
       brw_cache_flush_for_render(brw, irb->mt->bo,
-                                 isl_format, aux_usage);
+                                 isl_format, aux_usage, false);
    }
 }
 

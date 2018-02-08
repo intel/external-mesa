@@ -242,7 +242,7 @@ genX(blorp_exec)(struct blorp_batch *batch,
    if (params->dst.enabled) {
       brw_cache_flush_for_render(brw, params->dst.addr.buffer,
                                  params->dst.view.format,
-                                 params->dst.aux_usage);
+                                 params->dst.aux_usage, true);
    }
    if (params->depth.enabled)
       brw_cache_flush_for_depth(brw, params->depth.addr.buffer);
