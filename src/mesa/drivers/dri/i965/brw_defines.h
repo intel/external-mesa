@@ -1652,11 +1652,17 @@ enum brw_pixel_shader_coverage_mask_mode {
 #define GEN10_CACHE_MODE_SS            0x0e420
 #define GEN10_FLOAT_BLEND_OPTIMIZATION_ENABLE (1 << 4)
 
-#define INSTPM                             0x20c0
+#define INSTPM                             0x20c0 /* Gen6-8 */
 # define INSTPM_CONSTANT_BUFFER_ADDRESS_OFFSET_DISABLE (1 << 6)
+# define INSTPM_GLOBAL_DEBUG_ENABLE                    (1 << 4)
+# define INSTPM_MEDIA_INSTRUCTION_DISABLE              (1 << 3)
+# define INSTPM_3D_RENDERER_INSTRUCTION_DISABLE        (1 << 2)
+# define INSTPM_3D_STATE_INSTRUCTION_DISABLE           (1 << 1)
 
 #define CS_DEBUG_MODE2                     0x20d8 /* Gen9+ */
 # define CSDBG2_CONSTANT_BUFFER_ADDRESS_OFFSET_DISABLE (1 << 4)
+# define CSDBG2_MEDIA_INSTRUCTION_DISABLE              (1 << 1)
+# define CSDBG2_3D_RENDERER_INSTRUCTION_DISABLE        (1 << 0)
 
 #define GEN7_RPSTAT1                       0xA01C
 #define  GEN7_RPSTAT1_CURR_GT_FREQ_SHIFT   7

@@ -128,6 +128,7 @@ struct gen_perf_query_info {
       GEN_PERF_QUERY_TYPE_OA,
       GEN_PERF_QUERY_TYPE_RAW,
       GEN_PERF_QUERY_TYPE_PIPELINE,
+      GEN_PERF_QUERY_TYPE_NULL,
    } kind;
    const char *name;
    const char *guid;
