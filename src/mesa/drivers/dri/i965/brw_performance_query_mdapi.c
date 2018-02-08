@@ -258,3 +258,13 @@ brw_perf_query_register_mdapi_statistic_query(struct brw_context *brw)
 
    query->data_size = sizeof(uint64_t) * query->n_counters;
 }
+
+void
+brw_perf_query_register_gpa_null_query(struct brw_context *brw)
+{
+   struct gen_perf_query_info *query =
+      gen_perf_query_append_query_info(brw->perfquery.perf, 0);
+
+   query->kind = GEN_PERF_QUERY_TYPE_NULL;
+   query->name = "Intel_Null_Hardware_Query";
+}
