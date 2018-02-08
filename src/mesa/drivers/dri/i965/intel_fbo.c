@@ -1032,10 +1032,10 @@ format_aux_tuple(enum isl_format format, enum isl_aux_usage aux_usage)
 void
 brw_cache_flush_for_render(struct brw_context *brw, struct brw_bo *bo,
                            enum isl_format format,
-                           enum isl_aux_usage aux_usage)
+                           enum isl_aux_usage aux_usage, bool force)
 {
-   if (_mesa_set_search(brw->depth_cache, bo))
-      flush_depth_and_render_caches(brw, bo);
+   if (_mesa_set_search(brw->depth_cache, bo) || force)
+       flush_depth_and_render_caches(brw, bo);
 
    /* Check to see if this bo has been used by a previous rendering operation
     * but with a different format or aux usage.  If it has, flush the render
