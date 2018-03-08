@@ -230,6 +230,15 @@ genX(blorp_exec)(struct blorp_batch *batch,
    struct gl_context *ctx = &brw->ctx;
    bool check_aperture_failed_once = false;
 
+   if (gen9_astc5x5_wa_required(brw)) {
+      if (blorp_params_src_has_astc5x5(params)) {
+         assert(!blorp_params_src_has_aux(params));
+         gen9_set_astc5x5_wa_mode(brw, BRW_ASTC5x5_WA_MODE_HAS_ASTC5x5);
+      } else if (blorp_params_src_has_aux(params)) {
+         gen9_set_astc5x5_wa_mode(brw, BRW_ASTC5x5_WA_MODE_HAS_AUX);
+      }
+   }
+
    /* Flush the sampler and render caches.  We definitely need to flush the
     * sampler cache so that we get updated contents from the render cache for
     * the glBlitFramebuffer() source.  Also, we are sometimes warned in the
