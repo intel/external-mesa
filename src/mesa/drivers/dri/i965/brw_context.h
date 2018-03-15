@@ -843,6 +843,8 @@ struct brw_context
 
    GLuint primitive; /**< Hardware primitive, such as _3DPRIM_TRILIST. */
 
+   bool object_preemption; /**< Object level preemption enabled. */
+
    GLenum reduced_primitive;
 
    /**
