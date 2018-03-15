@@ -707,7 +707,7 @@ dri2_setup_screen(_EGLDisplay *disp)
       dri2_renderer_query_integer(dri2_dpy,
                                   __DRI2_RENDERER_HAS_CONTEXT_PRIORITY);
 
-   disp->Extensions.EXT_pixel_format_float = EGL_TRUE;
+   disp->Extensions.EXT_pixel_format_float = EGL_FALSE;
 
    if (dri2_renderer_query_integer(dri2_dpy,
                                    __DRI2_RENDERER_HAS_FRAMEBUFFER_SRGB))
