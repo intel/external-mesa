@@ -74,6 +74,9 @@ LOCAL_CFLAGS += \
 	-DHAVE_ENDIAN_H \
 	-DHAVE_ZLIB \
 	-DMAJOR_IN_SYSMACROS \
+	-D_FORTIFY_SOURCE=2 \
+	-fstack-protector-strong \
+	-fPIE -fPIC \
 	-DVK_USE_PLATFORM_ANDROID_KHR \
 	-fvisibility=hidden \
 	-Wno-sign-compare
@@ -82,6 +85,9 @@ LOCAL_CPPFLAGS += \
 	-D__STDC_CONSTANT_MACROS \
 	-D__STDC_FORMAT_MACROS \
 	-D__STDC_LIMIT_MACROS \
+	-D_FORTIFY_SOURCE=2 \
+	-fstack-protector-strong \
+	-fPIE -fPIC \
 	-Wno-error=non-virtual-dtor \
 	-Wno-non-virtual-dtor
 
