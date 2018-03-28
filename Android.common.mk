@@ -74,6 +74,9 @@ LOCAL_CFLAGS += \
 	-DHAVE_ENDIAN_H \
 	-DHAVE_ZLIB \
 	-DMAJOR_IN_SYSMACROS \
+	-D_FORTIFY_SOURCE=2 \
+	-fstack-protector-strong \
+	-fPIE -fPIC \
 	-fvisibility=hidden \
 	-Wno-sign-compare \
 	-Wno-self-assign \
@@ -86,6 +89,9 @@ LOCAL_CPPFLAGS += \
 	-D__STDC_CONSTANT_MACROS \
 	-D__STDC_FORMAT_MACROS \
 	-D__STDC_LIMIT_MACROS \
+	-D_FORTIFY_SOURCE=2 \
+	-fstack-protector-strong \
+	-fPIE -fPIC \
 	-Wno-error=non-virtual-dtor \
 	-Wno-non-virtual-dtor \
 	-Wno-delete-non-virtual-dtor \
