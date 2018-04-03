@@ -72,9 +72,10 @@ static inline void _eglFiniTSD(void)
    if (_egl_TSDInitialized) {
       _EGLThreadInfo *t = _eglGetTSD();
 
-      _egl_TSDInitialized = EGL_FALSE;
       if (t && _egl_FreeTSD)
          _egl_FreeTSD((void *) t);
+
+      _egl_TSDInitialized = EGL_FALSE;
       tss_delete(_egl_TSD);
    }
    mtx_unlock(&_egl_TSDMutex);
@@ -132,8 +133,11 @@ _eglCreateThreadInfo(void)
 static void
 _eglDestroyThreadInfo(_EGLThreadInfo *t)
 {
-   if (t != &dummy_thread)
+   if (t != &dummy_thread){
+      _EGLThreadInfo *t2 = _eglGetCurrentThread();
+      t2->CurrentContext = t->CurrentContext;
       free(t);
+   }
 }
 
 
