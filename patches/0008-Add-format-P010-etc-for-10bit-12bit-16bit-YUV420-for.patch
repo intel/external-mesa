@@ -1,0 +1,129 @@
+From a86411cf4e07b09297b4397c12fe035f1de6ef43 Mon Sep 17 00:00:00 2001
+From: Lin Johnson <johnson.lin@intel.com>
+Date: Sun, 15 Oct 2017 00:09:09 +0800
+Subject: [PATCH 08/27] Add format P010 etc for 10bit/12bit/16bit YUV420
+ formats
+
+Add those definition in dri2_interface.h and in intel_screen.c
+This will make P010 formats be sampleable in OpenGL
+
+Signed-off-by: Lin Johnson <johnson.lin@intel.com>
+---
+ include/GL/internal/dri_interface.h      |  4 ++++
+ src/egl/drivers/dri2/egl_dri2.c          |  5 +++++
+ src/egl/drivers/dri2/platform_android.c  |  5 ++++-
+ src/gallium/state_trackers/dri/dri2.c    |  6 ++++++
+ src/mesa/drivers/dri/i965/intel_screen.c | 12 ++++++++++++
+ 5 files changed, 31 insertions(+), 1 deletion(-)
+
+diff --git a/include/GL/internal/dri_interface.h b/include/GL/internal/dri_interface.h
+index 4f4795c..cae9f14 100644
+--- a/include/GL/internal/dri_interface.h
++++ b/include/GL/internal/dri_interface.h
+@@ -1313,6 +1313,10 @@ struct __DRIdri2ExtensionRec {
+ #define __DRI_IMAGE_FOURCC_YVU422	0x36315659
+ #define __DRI_IMAGE_FOURCC_YVU444	0x34325659
+ 
++#define __DRI_IMAGE_FOURCC_P010     0x30313050
++#define __DRI_IMAGE_FOURCC_P012     0x32313050
++#define __DRI_IMAGE_FOURCC_P016     0x36313050
++
+ /**
+  * Queryable on images created by createImageFromNames.
+  *
+diff --git a/src/egl/drivers/dri2/egl_dri2.c b/src/egl/drivers/dri2/egl_dri2.c
+index 45d0c72..a6deb87 100644
+--- a/src/egl/drivers/dri2/egl_dri2.c
++++ b/src/egl/drivers/dri2/egl_dri2.c
+@@ -89,6 +89,10 @@
+ #define DRM_FORMAT_GR1616        fourcc_code('G', 'R', '3', '2') /* [31:0] R:G 16:16 little endian */
+ #endif
+ 
++#ifndef DRM_FORMAT_P010
++#define DRM_FORMAT_P010 	 fourcc_code('P', '0', '1', '0') /* 2x2 subsampled Cb:Cr plane 10 bits per channel */
++#endif
++
+ #ifndef DRM_FORMAT_MOD_INVALID
+ #define DRM_FORMAT_MOD_INVALID ((1ULL<<56) - 1)
+ #endif
+@@ -2283,6 +2287,7 @@ dri2_check_dma_buf_format(const _EGLImageAttribs *attrs)
+    case DRM_FORMAT_NV21:
+    case DRM_FORMAT_NV16:
+    case DRM_FORMAT_NV61:
++   case DRM_FORMAT_P010:
+       plane_n = 2;
+       break;
+    case DRM_FORMAT_YUV410:
+diff --git a/src/egl/drivers/dri2/platform_android.c b/src/egl/drivers/dri2/platform_android.c
+index 3111feb..976dd10 100644
+--- a/src/egl/drivers/dri2/platform_android.c
++++ b/src/egl/drivers/dri2/platform_android.c
+@@ -59,6 +59,7 @@ struct droid_yuv_format {
+ enum {
+    HAL_PIXEL_FORMAT_NV12_Y_TILED_INTEL = 0x100,
+    HAL_PIXEL_FORMAT_NV12 = 0x10F,
++   HAL_PIXEL_FORMAT_P010_INTEL = 0x110
+ };
+ 
+ /* The following table is used to look up a DRI image FourCC based
+@@ -66,6 +67,7 @@ enum {
+ static const struct droid_yuv_format droid_yuv_formats[] = {
+    /* Native format, YCrCb, Chroma step, DRI image FourCC */
+    { HAL_PIXEL_FORMAT_YCbCr_420_888,   0, 2, __DRI_IMAGE_FOURCC_NV12 },
++   { HAL_PIXEL_FORMAT_P010_INTEL,      0, 4, __DRI_IMAGE_FOURCC_P010 },
+    { HAL_PIXEL_FORMAT_YCbCr_420_888,   0, 1, __DRI_IMAGE_FOURCC_YUV420 },
+    { HAL_PIXEL_FORMAT_YCbCr_420_888,   1, 1, __DRI_IMAGE_FOURCC_YVU420 },
+    { HAL_PIXEL_FORMAT_YV12,            1, 1, __DRI_IMAGE_FOURCC_YVU420 },
+@@ -874,7 +876,8 @@ droid_create_image_from_prime_fd_yuv(_EGLDisplay *disp, _EGLContext *ctx,
+       return NULL;
+    }
+ 
+-   if (ycbcr.chroma_step == 2) {
++   /* FIXME? we should not rely on chroma_step */
++   if (ycbcr.chroma_step == 2 || ycbcr.chroma_step == 4) {
+       /* Semi-planar Y + CbCr or Y + CrCb format. */
+       const EGLint attr_list_2plane[] = {
+          EGL_WIDTH, buf->width,
+diff --git a/src/gallium/state_trackers/dri/dri2.c b/src/gallium/state_trackers/dri/dri2.c
+index 58a6757..c82021b 100644
+--- a/src/gallium/state_trackers/dri/dri2.c
++++ b/src/gallium/state_trackers/dri/dri2.c
+@@ -160,6 +160,12 @@ static int convert_fourcc(int format, int *dri_components_p)
+       format = __DRI_IMAGE_FORMAT_R8;
+       dri_components = __DRI_IMAGE_COMPONENTS_Y_UV;
+       break;
++   case __DRI_IMAGE_FOURCC_P010:
++   case __DRI_IMAGE_FOURCC_P012:
++   case __DRI_IMAGE_FOURCC_P016:
++      format = __DRI_IMAGE_FORMAT_R16;
++      dri_components = __DRI_IMAGE_COMPONENTS_Y_UV;
++      break;
+    default:
+       return -1;
+    }
+diff --git a/src/mesa/drivers/dri/i965/intel_screen.c b/src/mesa/drivers/dri/i965/intel_screen.c
+index dcb98da..0551b75 100644
+--- a/src/mesa/drivers/dri/i965/intel_screen.c
++++ b/src/mesa/drivers/dri/i965/intel_screen.c
+@@ -277,6 +277,18 @@ static const struct intel_image_format intel_image_formats[] = {
+      { { 0, 0, 0, __DRI_IMAGE_FORMAT_R8, 1 },
+        { 1, 1, 1, __DRI_IMAGE_FORMAT_GR88, 2 } } },
+ 
++   { __DRI_IMAGE_FOURCC_P010, __DRI_IMAGE_COMPONENTS_Y_UV, 2,
++     { { 0, 0, 0, __DRI_IMAGE_FORMAT_R16, 2 },
++       { 1, 1, 1, __DRI_IMAGE_FORMAT_GR1616, 4 } } },
++
++   { __DRI_IMAGE_FOURCC_P012, __DRI_IMAGE_COMPONENTS_Y_UV, 2,
++     { { 0, 0, 0, __DRI_IMAGE_FORMAT_R16, 2 },
++       { 1, 1, 1, __DRI_IMAGE_FORMAT_GR1616, 4 } } },
++
++   { __DRI_IMAGE_FOURCC_P016, __DRI_IMAGE_COMPONENTS_Y_UV, 2,
++     { { 0, 0, 0, __DRI_IMAGE_FORMAT_R16, 2 },
++       { 1, 1, 1, __DRI_IMAGE_FORMAT_GR1616, 4 } } },
++
+    { __DRI_IMAGE_FOURCC_NV16, __DRI_IMAGE_COMPONENTS_Y_UV, 2,
+      { { 0, 0, 0, __DRI_IMAGE_FORMAT_R8, 1 },
+        { 1, 1, 0, __DRI_IMAGE_FORMAT_GR88, 2 } } },
+-- 
+2.7.4
+

@@ -1,0 +1,130 @@
+From 1e3dd150d3d69ff1b94c06e6889aa35bb2d9d3e0 Mon Sep 17 00:00:00 2001
+From: Lionel Landwerlin <lionel.g.landwerlin@intel.com>
+Date: Tue, 3 Apr 2018 15:48:13 +0100
+Subject: [PATCH 27/27] FROMLIST: i965: perf: enable GPA query statistics
+
+The combinaison of GPA/MDAPI components expects a particular name &
+layout for their pipeline statistics query.
+
+v2: Limit the query GPA/MDAPI statistics to gen7->9 (Lionel)
+
+Signed-off-by: Lionel Landwerlin <lionel.g.landwerlin@intel.com>
+---
+ src/mesa/drivers/dri/i965/brw_performance_query.c  |  1 +
+ .../drivers/dri/i965/brw_performance_query_mdapi.c | 64 ++++++++++++++++++++++
+ .../drivers/dri/i965/brw_performance_query_mdapi.h |  2 +-
+ 3 files changed, 66 insertions(+), 1 deletion(-)
+
+diff --git a/src/mesa/drivers/dri/i965/brw_performance_query.c b/src/mesa/drivers/dri/i965/brw_performance_query.c
+index aed8541..a7e3f11 100644
+--- a/src/mesa/drivers/dri/i965/brw_performance_query.c
++++ b/src/mesa/drivers/dri/i965/brw_performance_query.c
+@@ -2144,6 +2144,7 @@ brw_init_perf_query_info(struct gl_context *ctx)
+       return brw->perfquery.n_queries;
+ 
+    init_pipeline_statistic_query_registers(brw);
++   brw_perf_query_register_mdapi_statistic_query(brw);
+ 
+    oa_register = get_register_queries_function(devinfo);
+ 
+diff --git a/src/mesa/drivers/dri/i965/brw_performance_query_mdapi.c b/src/mesa/drivers/dri/i965/brw_performance_query_mdapi.c
+index cc315ce..7e254e7 100644
+--- a/src/mesa/drivers/dri/i965/brw_performance_query_mdapi.c
++++ b/src/mesa/drivers/dri/i965/brw_performance_query_mdapi.c
+@@ -21,6 +21,7 @@
+  * IN THE SOFTWARE.
+  */
+ 
++#include "brw_defines.h"
+ #include "brw_performance_query.h"
+ #include "brw_performance_query_mdapi.h"
+ 
+@@ -100,6 +101,20 @@ struct mdapi_gen9_metrics {
+    uint32_t Reserved4;
+ };
+ 
++struct mdapi_pipeline_metrics {
++   uint64_t IAVertices;
++   uint64_t IAPrimitives;
++   uint64_t VSInvocations;
++   uint64_t GSInvocations;
++   uint64_t GSPrimitives;
++   uint64_t CInvocations;
++   uint64_t CPrimitives;
++   uint64_t PSInvocations;
++   uint64_t HSInvocations;
++   uint64_t DSInvocations;
++   uint64_t CSInvocations;
++};
++
+ int
+ brw_perf_query_get_mdapi_oa_data(struct brw_context *brw,
+                                  struct brw_perf_query_object *obj,
+@@ -377,3 +392,52 @@ brw_perf_query_register_mdapi_oa_query(struct brw_context *brw)
+       query->c_offset = copy_query->c_offset;
+    }
+ }
++
++void
++brw_perf_query_register_mdapi_statistic_query(struct brw_context *brw)
++{
++   const struct gen_device_info *devinfo = &brw->screen->devinfo;
++
++   if (!(devinfo->gen >= 7 && devinfo->gen <= 9))
++      return;
++
++   struct brw_perf_query_info *query = brw_perf_query_append_query_info(brw);
++
++   query->kind = PIPELINE_STATS;
++   query->name = "Intel_Raw_Pipeline_Statistics_Query";
++   query->n_counters = 0;
++   query->counters =
++      rzalloc_array(brw, struct brw_perf_query_counter, MAX_STAT_COUNTERS);
++
++   /* The order has to match mdapi_pipeline_metrics. */
++   brw_perf_query_info_add_basic_stat_reg(query, IA_VERTICES_COUNT,
++                                          "N vertices submitted");
++   brw_perf_query_info_add_basic_stat_reg(query, IA_PRIMITIVES_COUNT,
++                                          "N primitives submitted");
++   brw_perf_query_info_add_basic_stat_reg(query, VS_INVOCATION_COUNT,
++                                          "N vertex shader invocations");
++   brw_perf_query_info_add_basic_stat_reg(query, GS_INVOCATION_COUNT,
++                                          "N geometry shader invocations");
++   brw_perf_query_info_add_basic_stat_reg(query, GS_PRIMITIVES_COUNT,
++                                          "N geometry shader primitives emitted");
++   brw_perf_query_info_add_basic_stat_reg(query, CL_INVOCATION_COUNT,
++                                          "N primitives entering clipping");
++   brw_perf_query_info_add_basic_stat_reg(query, CL_PRIMITIVES_COUNT,
++                                          "N primitives leaving clipping");
++   if (devinfo->is_haswell || devinfo->gen == 8)
++      brw_perf_query_info_add_stat_reg(query, PS_INVOCATION_COUNT, 1, 4,
++                                       "N fragment shader invocations",
++                                       "N fragment shader invocations");
++   else
++      brw_perf_query_info_add_basic_stat_reg(query, PS_INVOCATION_COUNT,
++                                             "N fragment shader invocations");
++   brw_perf_query_info_add_basic_stat_reg(query, HS_INVOCATION_COUNT,
++                                          "N TCS shader invocations");
++   brw_perf_query_info_add_basic_stat_reg(query, DS_INVOCATION_COUNT,
++                                          "N TES shader invocations");
++   if (devinfo->gen >= 7)
++      brw_perf_query_info_add_basic_stat_reg(query, CS_INVOCATION_COUNT,
++                                             "N compute shader invocations");
++
++   query->data_size = sizeof(uint64_t) * query->n_counters;
++}
+diff --git a/src/mesa/drivers/dri/i965/brw_performance_query_mdapi.h b/src/mesa/drivers/dri/i965/brw_performance_query_mdapi.h
+index e6da3a2..42cb565 100644
+--- a/src/mesa/drivers/dri/i965/brw_performance_query_mdapi.h
++++ b/src/mesa/drivers/dri/i965/brw_performance_query_mdapi.h
+@@ -34,6 +34,6 @@ int brw_perf_query_get_mdapi_oa_data(struct brw_context *brw,
+                                      uint8_t *data);
+ 
+ void brw_perf_query_register_mdapi_oa_query(struct brw_context *brw);
+-
++void brw_perf_query_register_mdapi_statistic_query(struct brw_context *brw);
+ 
+ #endif /* BRW_PERFORMANCE_QUERY_MDAPI_H */
+-- 
+2.7.4
+

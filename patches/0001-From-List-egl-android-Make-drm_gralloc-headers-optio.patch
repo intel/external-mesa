@@ -1,0 +1,113 @@
+From 3abc1a125ca1e76d6aea933efa6e5e33962a6f5a Mon Sep 17 00:00:00 2001
+From: Tomasz Figa <tfiga@chromium.org>
+Date: Mon, 29 May 2017 07:43:00 +0300
+Subject: [PATCH 01/27] From List: egl/android: Make drm_gralloc headers
+ optional (v2)
+
+Make the code at least compile when being built without drm_gralloc
+headers.
+
+v2: Replaced #ifdefs with stubs for gralloc_drm_get_gem_handle()
+    and GRALLOC_MODULE_PERFORM_GET_DRM_FD.
+    Removed explicit render node probing code.
+
+Signed-off-by: Tomasz Figa <tfiga@chromium.org>
+---
+ src/egl/Android.mk                                 |  1 +
+ src/egl/Makefile.am                                |  4 ++-
+ src/egl/drivers/dri2/egl_dri2.h                    |  2 +-
+ .../drivers/dri2/platform_android_gralloc_drm.h    | 41 ++++++++++++++++++++++
+ 4 files changed, 46 insertions(+), 2 deletions(-)
+ create mode 100644 src/egl/drivers/dri2/platform_android_gralloc_drm.h
+
+diff --git a/src/egl/Android.mk b/src/egl/Android.mk
+index 1181869..16ccddc 100644
+--- a/src/egl/Android.mk
++++ b/src/egl/Android.mk
+@@ -41,6 +41,7 @@ LOCAL_SRC_FILES := \
+ LOCAL_CFLAGS := \
+ 	-D_EGL_NATIVE_PLATFORM=_EGL_PLATFORM_ANDROID \
+ 	-D_EGL_BUILT_IN_DRIVER_DRI2 \
++	-DHAS_GRALLOC_DRM_HEADERS \
+ 	-DHAVE_ANDROID_PLATFORM
+ 
+ LOCAL_C_INCLUDES := \
+diff --git a/src/egl/Makefile.am b/src/egl/Makefile.am
+index 086a4a1..f771c81 100644
+--- a/src/egl/Makefile.am
++++ b/src/egl/Makefile.am
+@@ -106,7 +106,9 @@ endif
+ if HAVE_PLATFORM_ANDROID
+ AM_CFLAGS += $(ANDROID_CFLAGS)
+ libEGL_common_la_LIBADD += $(ANDROID_LIBS)
+-dri2_backend_FILES += drivers/dri2/platform_android.c
++dri2_backend_FILES += \
++	drivers/dri2/platform_android.c \
++	drivers/dri2/egl_dri2_drm_gralloc.h
+ endif
+ 
+ AM_CFLAGS += \
+diff --git a/src/egl/drivers/dri2/egl_dri2.h b/src/egl/drivers/dri2/egl_dri2.h
+index adabc52..8bea9cd 100644
+--- a/src/egl/drivers/dri2/egl_dri2.h
++++ b/src/egl/drivers/dri2/egl_dri2.h
+@@ -66,8 +66,8 @@ struct zwp_linux_dmabuf_v1;
+ #define LOG_TAG "EGL-DRI2"
+ 
+ #include <system/window.h>
++#include "platform_android_gralloc_drm.h"
+ #include <hardware/gralloc.h>
+-#include <gralloc_drm_handle.h>
+ 
+ #endif /* HAVE_ANDROID_PLATFORM */
+ 
+diff --git a/src/egl/drivers/dri2/platform_android_gralloc_drm.h b/src/egl/drivers/dri2/platform_android_gralloc_drm.h
+new file mode 100644
+index 0000000..6757d1b
+--- /dev/null
++++ b/src/egl/drivers/dri2/platform_android_gralloc_drm.h
+@@ -0,0 +1,41 @@
++/*
++ * Copyright 2016 Google Inc. All Rights Reserved.
++ *
++ * Permission is hereby granted, free of charge, to any person obtaining a
++ * copy of this software and associated documentation files (the "Software"),
++ * to deal in the Software without restriction, including without limitation
++ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
++ * and/or sell copies of the Software, and to permit persons to whom the
++ * Software is furnished to do so, subject to the following conditions:
++ *
++ * The above copyright notice and this permission notice (including the next
++ * paragraph) shall be included in all copies or substantial portions of the
++ * Software.
++ *
++ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++ * NONINFRINGEMENT.  IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
++ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
++ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++ * DEALINGS IN THE SOFTWARE.
++ */
++
++#pragma once
++
++#ifdef HAS_GRALLOC_DRM_HEADERS
++
++#include <gralloc_drm.h>
++#include <gralloc_drm_handle.h>
++
++#else
++
++#define GRALLOC_MODULE_PERFORM_GET_DRM_FD 0x0FD4DEAD
++
++static inline int gralloc_drm_get_gem_handle(buffer_handle_t handle)
++{
++   return 0; /* Not supported, return invalid handle. */
++}
++
++#endif
+-- 
+2.7.4
+

@@ -1,0 +1,31 @@
+#Github: https://github.com/android-ia/external-mesa
+#Upstream: https://cgit.freedesktop.org/mesa/mesa/
+#Upstream Commit Id: 67c728f7a9450b04d4de1a29f1dcfb9265a7ebfd
+
+0001-From-List-egl-android-Make-drm_gralloc-headers-optio.patch
+0002-AndroidIA-Make-HAS_GRALLOC_DRM_HEADERS-configurable.patch
+0003-CHROMIUM-egl-android-Support-opening-render-nodes-fr.patch
+0004-AndroidIA-REVERTME-Enable-sampling-for-imported-dma_.patch
+0005-AndroidIA-enable-O3-for-Mesa-compilation.patch
+0006-AndroidIA-glcpp-Hack-to-handle-expressions-in-line-d.patch
+0007-AndroidIA-Adds-support-for-gralloc1.0-and-uses-lockf.patch
+0008-Add-format-P010-etc-for-10bit-12bit-16bit-YUV420-for.patch
+0009-Mesa-Static-link-with-libexpat.patch
+0010-AndroidIA-Build-fixes-for-OMR1.patch
+0011-Internal-Relax-permissions-when-we-export-prime-hand.patch
+0012-REVERTME-Disable-EGL_KHR_gl_colorspace-for-dEQP-wide.patch
+0013-FROMLIST-i965-define-astx5x5-workaround-infrastructu.patch
+0014-FROMLIST-i965-prevent-using-auxilary-buffers-when-an.patch
+0015-FROMLIST-i965-ASTC5x5-workaround-logic-for-blorp.patch
+0016-Disable-EXT_pixel_format_float-for-Android-CtsViewTe.patch
+0017-CHROMIUM-egl-automatically-call-eglReleaseThread-on-.patch
+0018-FROMLIST-intel-genxml-Add-register-for-object-preemp.patch
+0019-FROMLIST-anv-gen10-Enable-object-level-preemption.patch
+0020-FROMLIST-i965-gen10-Enable-object-level-preemption.patch
+0021-FROMLIST-i965-gen9-Add-workarounds-for-object-preemp.patch
+0022-Enable-more-compiler-options.patch
+0023-FROMLIST-i965-perf-extract-utility-functions.patch
+0024-FROMLIST-i965-perf-snapshot-RPSTAT-register.patch
+0025-FROMLIST-i965-perf-read-slice-unslice-frequencies-fr.patch
+0026-FROMLIST-i965-perf-add-support-for-raw-queries.patch
+0027-FROMLIST-i965-perf-enable-GPA-query-statistics.patch

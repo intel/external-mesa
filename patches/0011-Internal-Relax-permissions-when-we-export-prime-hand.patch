@@ -1,0 +1,33 @@
+From 504254ea2b11a38e333712405de09f6bdc81d1b5 Mon Sep 17 00:00:00 2001
+From: Kalyan Kondapally <kalyan.kondapally@intel.com>
+Date: Sat, 3 Feb 2018 17:51:04 -0800
+Subject: [PATCH 11/27] Internal: Relax permissions when we export prime handle
+ for GEM.
+
+This is needed in case we want to use mmap with dma-buf and
+write into the buffer in CPU side. This is useful when
+layers are rendered using software and we will either
+need to scan or texture from these layers.
+Check: https://patchwork.freedesktop.org/patch/56380/
+
+Signed-off-by: Kalyan Kondapally <kalyan.kondapally@intel.com>
+---
+ src/mesa/drivers/dri/i965/brw_bufmgr.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/mesa/drivers/dri/i965/brw_bufmgr.c b/src/mesa/drivers/dri/i965/brw_bufmgr.c
+index 8ba915b..8f84817 100644
+--- a/src/mesa/drivers/dri/i965/brw_bufmgr.c
++++ b/src/mesa/drivers/dri/i965/brw_bufmgr.c
+@@ -1221,7 +1221,7 @@ brw_bo_gem_export_to_prime(struct brw_bo *bo, int *prime_fd)
+    brw_bo_make_external(bo);
+ 
+    if (drmPrimeHandleToFD(bufmgr->fd, bo->gem_handle,
+-                          DRM_CLOEXEC, prime_fd) != 0)
++			  DRM_CLOEXEC | DRM_RDWR, prime_fd) != 0)
+       return -errno;
+ 
+    bo->reusable = false;
+-- 
+2.7.4
+

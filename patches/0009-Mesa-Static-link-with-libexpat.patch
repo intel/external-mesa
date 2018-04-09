@@ -1,0 +1,108 @@
+From 4f6d9198f05525b29aefc6c485987fffbcb8c529 Mon Sep 17 00:00:00 2001
+From: Kishore Kadiyala <kishore.kadiyala@intel.com>
+Date: Mon, 30 Oct 2017 22:33:50 +0530
+Subject: [PATCH 09/27] Mesa Static link with libexpat
+
+In Android O, MESA needs to statically link libexpat
+so that it's in same namespace.
+
+Change-Id: I82b0be5c817c21e734dfdf5bfb6a9aa1d414ab33
+Signed-off-by: Kishore Kadiyala <kishore.kadiyala@intel.com>
+---
+ src/gallium/targets/dri/Android.mk | 10 +++++++++-
+ src/intel/Android.common.mk        | 11 ++++++++++-
+ src/mesa/drivers/dri/Android.mk    |  9 ++++++++-
+ src/util/Android.mk                |  6 ++++++
+ 4 files changed, 33 insertions(+), 3 deletions(-)
+
+diff --git a/src/gallium/targets/dri/Android.mk b/src/gallium/targets/dri/Android.mk
+index 5a3fda6..dd0427d 100644
+--- a/src/gallium/targets/dri/Android.mk
++++ b/src/gallium/targets/dri/Android.mk
+@@ -42,9 +42,17 @@ LOCAL_LDFLAGS := \
+ LOCAL_SHARED_LIBRARIES := \
+ 	libdl \
+ 	libglapi \
+-	libexpat \
+ 	libz
+ 
++# If Android version >=8 MESA should static link libexpat else should dynamic link
++ifeq ($(shell test $(PLATFORM_SDK_VERSION) -ge 27; echo $$?), 0)
++LOCAL_STATIC_LIBRARIES := \
++	libexpat
++else
++LOCAL_SHARED_LIBRARIES += \
++	libexpat
++endif
++
+ $(foreach d, $(MESA_BUILD_GALLIUM), $(eval LOCAL_CFLAGS += $(patsubst HAVE_%,-D%,$(d))))
+ 
+ # sort GALLIUM_LIBS to remove any duplicates
+diff --git a/src/intel/Android.common.mk b/src/intel/Android.common.mk
+index 12cea6e..20e78f5 100644
+--- a/src/intel/Android.common.mk
++++ b/src/intel/Android.common.mk
+@@ -38,7 +38,16 @@ LOCAL_C_INCLUDES := \
+ 	$(MESA_TOP)/src/mapi \
+ 	$(MESA_TOP)/src/mesa
+ 
+-LOCAL_SHARED_LIBRARIES := libexpat libz
++LOCAL_SHARED_LIBRARIES := libz
++
++# If Android version >=8 MESA should static link libexpat else should dynamic link
++ifeq ($(shell test $(PLATFORM_SDK_VERSION) -ge 27; echo $$?), 0)
++LOCAL_STATIC_LIBRARIES := \
++	libexpat
++else
++LOCAL_SHARED_LIBRARIES += \
++	libexpat
++endif
+ 
+ LOCAL_WHOLE_STATIC_LIBRARIES := libmesa_genxml
+ 
+diff --git a/src/mesa/drivers/dri/Android.mk b/src/mesa/drivers/dri/Android.mk
+index 53ff4b4..dc1f983 100644
+--- a/src/mesa/drivers/dri/Android.mk
++++ b/src/mesa/drivers/dri/Android.mk
+@@ -49,11 +49,18 @@ MESA_DRI_WHOLE_STATIC_LIBRARIES := \
+ MESA_DRI_SHARED_LIBRARIES := \
+ 	libcutils \
+ 	libdl \
+-	libexpat \
+ 	libglapi \
+ 	liblog \
+ 	libz
+ 
++# If Android version >=8 MESA should static link libexpat else should dynamic link
++ifeq ($(shell test $(PLATFORM_SDK_VERSION) -ge 27; echo $$?), 0)
++MESA_DRI_WHOLE_STATIC_LIBRARIES += \
++	libexpat
++else
++MESA_DRI_SHARED_LIBRARIES += \
++	libexpat
++endif
+ #-----------------------------------------------
+ # Build drivers and libmesa_dri_common
+ 
+diff --git a/src/util/Android.mk b/src/util/Android.mk
+index 9b61442..7525ea1 100644
+--- a/src/util/Android.mk
++++ b/src/util/Android.mk
+@@ -41,8 +41,14 @@ LOCAL_C_INCLUDES := \
+ 	$(MESA_TOP)/src/gallium/include \
+ 	$(MESA_TOP)/src/gallium/auxiliary
+ 
++# If Android version >=8 MESA should static link libexpat else should dynamic link
++ifeq ($(shell test $(PLATFORM_SDK_VERSION) -ge 27; echo $$?), 0)
++LOCAL_STATIC_LIBRARIES := \
++	libexpat
++else
+ LOCAL_SHARED_LIBRARIES := \
+ 	libexpat
++endif
+ 
+ LOCAL_MODULE := libmesa_util
+ 
+-- 
+2.7.4
+

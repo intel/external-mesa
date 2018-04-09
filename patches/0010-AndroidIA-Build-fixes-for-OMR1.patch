@@ -1,0 +1,238 @@
+From bb6ef0472d31064c65d109e58655ec2421b4ed74 Mon Sep 17 00:00:00 2001
+From: Chen Lin Z <lin.z.chen@intel.com>
+Date: Mon, 18 Dec 2017 13:30:30 +0200
+Subject: [PATCH 10/27] AndroidIA: Build fixes for OMR1.
+
+Jira: None.
+Test: Build passes.
+
+Signed-off-by: Chen Lin Z <lin.z.chen@intel.com>
+---
+ Android.common.mk           | 13 +++++++++++--
+ src/egl/Android.mk          |  8 +++++++-
+ src/intel/Android.common.mk |  1 +
+ src/intel/Android.vulkan.mk | 31 ++++++++++++++++++++++++++-----
+ src/vulkan/Android.mk       |  7 +++++--
+ 5 files changed, 50 insertions(+), 10 deletions(-)
+
+diff --git a/Android.common.mk b/Android.common.mk
+index 89dd957..77098d5 100644
+--- a/Android.common.mk
++++ b/Android.common.mk
+@@ -75,14 +75,23 @@ LOCAL_CFLAGS += \
+ 	-DHAVE_ZLIB \
+ 	-DMAJOR_IN_SYSMACROS \
+ 	-fvisibility=hidden \
+-	-Wno-sign-compare
++	-Wno-sign-compare \
++	-Wno-self-assign \
++	-Wno-constant-logical-operand \
++	-Wno-format \
++	-Wno-incompatible-pointer-types \
++	-Wno-enum-conversion
+ 
+ LOCAL_CPPFLAGS += \
+ 	-D__STDC_CONSTANT_MACROS \
+ 	-D__STDC_FORMAT_MACROS \
+ 	-D__STDC_LIMIT_MACROS \
+ 	-Wno-error=non-virtual-dtor \
+-	-Wno-non-virtual-dtor
++	-Wno-non-virtual-dtor \
++	-Wno-delete-non-virtual-dtor \
++	-Wno-overloaded-virtual \
++	-Wno-missing-braces \
++	-Wno-deprecated-register
+ 
+ # mesa requires at least c99 compiler
+ LOCAL_CONLYFLAGS += \
+diff --git a/src/egl/Android.mk b/src/egl/Android.mk
+index 8d3e96b..fbbc7f0 100644
+--- a/src/egl/Android.mk
++++ b/src/egl/Android.mk
+@@ -45,7 +45,9 @@ LOCAL_CFLAGS := \
+ 
+ LOCAL_C_INCLUDES := \
+ 	$(MESA_TOP)/src/egl/main \
+-	$(MESA_TOP)/src/egl/drivers/dri2
++	$(MESA_TOP)/src/egl/drivers/dri2 \
++	frameworks/native/libs/nativewindow/include \
++	frameworks/native/libs/arect/include
+ 
+ LOCAL_STATIC_LIBRARIES := \
+ 	libmesa_util \
+@@ -83,6 +85,10 @@ ifneq ($(MESA_BUILD_GALLIUM),)
+ LOCAL_REQUIRED_MODULES += gallium_dri
+ endif
+ 
++ifeq ($(shell test $(PLATFORM_SDK_VERSION) -ge 27; echo $$?), 0)
++LOCAL_HEADER_LIBRARIES += libnativebase_headers
++endif
++
+ LOCAL_MODULE := libGLES_mesa
+ LOCAL_MODULE_RELATIVE_PATH := egl
+ 
+diff --git a/src/intel/Android.common.mk b/src/intel/Android.common.mk
+index 20e78f5..12bd894 100644
+--- a/src/intel/Android.common.mk
++++ b/src/intel/Android.common.mk
+@@ -44,6 +44,7 @@ LOCAL_SHARED_LIBRARIES := libz
+ ifeq ($(shell test $(PLATFORM_SDK_VERSION) -ge 27; echo $$?), 0)
+ LOCAL_STATIC_LIBRARIES := \
+ 	libexpat
++LOCAL_HEADER_LIBRARIES += liblog_headers
+ else
+ LOCAL_SHARED_LIBRARIES += \
+ 	libexpat
+diff --git a/src/intel/Android.vulkan.mk b/src/intel/Android.vulkan.mk
+index 0ec0d78..a159f0f 100644
+--- a/src/intel/Android.vulkan.mk
++++ b/src/intel/Android.vulkan.mk
+@@ -38,7 +38,10 @@ VULKAN_COMMON_INCLUDES := \
+ 	$(MESA_TOP)/src/intel \
+ 	$(MESA_TOP)/include/drm-uapi \
+ 	$(MESA_TOP)/src/intel/vulkan \
+-	frameworks/native/vulkan/include
++	frameworks/native/vulkan/include \
++	frameworks/native/libs/nativebase/include \
++	frameworks/native/libs/nativewindow/include \
++	frameworks/native/libs/arect/include
+ 
+ # libmesa_anv_entrypoints with header and dummy.c
+ #
+@@ -75,6 +78,8 @@ LOCAL_EXPORT_C_INCLUDE_DIRS := \
+ 
+ LOCAL_SHARED_LIBRARIES := libdrm
+ 
++LOCAL_HEADER_LIBRARIES += libcutils_headers libhardware_headers
++
+ include $(MESA_COMMON_MK)
+ include $(BUILD_STATIC_LIBRARY)
+ 
+@@ -108,6 +113,8 @@ LOCAL_WHOLE_STATIC_LIBRARIES := libmesa_anv_entrypoints libmesa_genxml
+ 
+ LOCAL_SHARED_LIBRARIES := $(ANV_SHARED_LIBRARIES)
+ 
++LOCAL_HEADER_LIBRARIES += libcutils_headers libhardware_headers
++
+ include $(MESA_COMMON_MK)
+ include $(BUILD_STATIC_LIBRARY)
+ 
+@@ -121,13 +128,15 @@ LOCAL_MODULE_CLASS := STATIC_LIBRARIES
+ 
+ LOCAL_SRC_FILES := $(VULKAN_GEN75_FILES)
+ LOCAL_CFLAGS := -DGEN_VERSIONx10=75
+-
++LOCAL_HEADER_LIBRARIES += libcutils_headers libsystem_headers
+ LOCAL_C_INCLUDES := $(ANV_INCLUDES)
+ 
+ LOCAL_WHOLE_STATIC_LIBRARIES := libmesa_anv_entrypoints libmesa_genxml
+ 
+ LOCAL_SHARED_LIBRARIES := $(ANV_SHARED_LIBRARIES)
+ 
++LOCAL_HEADER_LIBRARIES += libcutils_headers libhardware_headers
++
+ include $(MESA_COMMON_MK)
+ include $(BUILD_STATIC_LIBRARY)
+ 
+@@ -141,13 +150,15 @@ LOCAL_MODULE_CLASS := STATIC_LIBRARIES
+ 
+ LOCAL_SRC_FILES := $(VULKAN_GEN8_FILES)
+ LOCAL_CFLAGS := -DGEN_VERSIONx10=80
+-
++LOCAL_HEADER_LIBRARIES += libcutils_headers libsystem_headers
+ LOCAL_C_INCLUDES := $(ANV_INCLUDES)
+ 
+ LOCAL_WHOLE_STATIC_LIBRARIES := libmesa_anv_entrypoints libmesa_genxml
+ 
+ LOCAL_SHARED_LIBRARIES := $(ANV_SHARED_LIBRARIES)
+ 
++LOCAL_HEADER_LIBRARIES += libcutils_headers libhardware_headers
++
+ include $(MESA_COMMON_MK)
+ include $(BUILD_STATIC_LIBRARY)
+ 
+@@ -161,13 +172,15 @@ LOCAL_MODULE_CLASS := STATIC_LIBRARIES
+ 
+ LOCAL_SRC_FILES := $(VULKAN_GEN9_FILES)
+ LOCAL_CFLAGS := -DGEN_VERSIONx10=90
+-
++LOCAL_HEADER_LIBRARIES += libcutils_headers libsystem_headers
+ LOCAL_C_INCLUDES := $(ANV_INCLUDES)
+ 
+ LOCAL_WHOLE_STATIC_LIBRARIES := libmesa_anv_entrypoints libmesa_genxml
+ 
+ LOCAL_SHARED_LIBRARIES := $(ANV_SHARED_LIBRARIES)
+ 
++LOCAL_HEADER_LIBRARIES += libcutils_headers libhardware_headers
++
+ include $(MESA_COMMON_MK)
+ include $(BUILD_STATIC_LIBRARY)
+ 
+@@ -181,13 +194,15 @@ LOCAL_MODULE_CLASS := STATIC_LIBRARIES
+ 
+ LOCAL_SRC_FILES := $(VULKAN_GEN10_FILES)
+ LOCAL_CFLAGS := -DGEN_VERSIONx10=100
+-
++LOCAL_HEADER_LIBRARIES += libcutils_headers libsystem_headers
+ LOCAL_C_INCLUDES := $(ANV_INCLUDES)
+ 
+ LOCAL_WHOLE_STATIC_LIBRARIES := libmesa_anv_entrypoints libmesa_genxml
+ 
+ LOCAL_SHARED_LIBRARIES := $(ANV_SHARED_LIBRARIES)
+ 
++LOCAL_HEADER_LIBRARIES += libcutils_headers libhardware_headers
++
+ include $(MESA_COMMON_MK)
+ include $(BUILD_STATIC_LIBRARY)
+ 
+@@ -208,6 +223,8 @@ LOCAL_WHOLE_STATIC_LIBRARIES := libmesa_anv_entrypoints libmesa_genxml
+ 
+ LOCAL_SHARED_LIBRARIES := $(ANV_SHARED_LIBRARIES)
+ 
++LOCAL_HEADER_LIBRARIES += libcutils_headers libhardware_headers
++
+ include $(MESA_COMMON_MK)
+ include $(BUILD_STATIC_LIBRARY)
+ 
+@@ -264,6 +281,8 @@ $(intermediates)/vulkan/anv_extensions.h:
+ 
+ LOCAL_SHARED_LIBRARIES := $(ANV_SHARED_LIBRARIES)
+ 
++LOCAL_HEADER_LIBRARIES += libcutils_headers libhardware_headers
++
+ include $(MESA_COMMON_MK)
+ include $(BUILD_STATIC_LIBRARY)
+ 
+@@ -313,5 +332,7 @@ LOCAL_WHOLE_STATIC_LIBRARIES := \
+ 
+ LOCAL_SHARED_LIBRARIES := $(ANV_SHARED_LIBRARIES) libz libsync liblog
+ 
++LOCAL_HEADER_LIBRARIES += libcutils_headers libhardware_headers
++
+ include $(MESA_COMMON_MK)
+ include $(BUILD_SHARED_LIBRARY)
+diff --git a/src/vulkan/Android.mk b/src/vulkan/Android.mk
+index 70b23ea..8c15cd8 100644
+--- a/src/vulkan/Android.mk
++++ b/src/vulkan/Android.mk
+@@ -32,12 +32,15 @@ include $(LOCAL_PATH)/Makefile.sources
+ include $(CLEAR_VARS)
+ LOCAL_MODULE := libmesa_vulkan_util
+ LOCAL_MODULE_CLASS := STATIC_LIBRARIES
+-
++LOCAL_HEADER_LIBRARIES += libcutils_headers libsystem_headers
+ intermediates := $(call local-generated-sources-dir)
+ 
+ LOCAL_C_INCLUDES := \
+ 	$(MESA_TOP)/include/vulkan \
+-	$(MESA_TOP)/src/vulkan/util
++	$(MESA_TOP)/src/vulkan/util \
++	frameworks/native/libs/nativebase/include \
++	frameworks/native/libs/nativewindow/include \
++	frameworks/native/libs/arect/include
+ 
+ LOCAL_GENERATED_SOURCES := $(addprefix $(intermediates)/, \
+ 	$(VULKAN_UTIL_GENERATED_FILES))
+-- 
+2.7.4
+

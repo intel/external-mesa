@@ -1,0 +1,781 @@
+From 25ac0582333973fe567568474952b115b7627638 Mon Sep 17 00:00:00 2001
+From: Lionel Landwerlin <lionel.g.landwerlin@intel.com>
+Date: Tue, 3 Apr 2018 15:48:12 +0100
+Subject: [PATCH 26/27] FROMLIST: i965: perf: add support for raw queries
+
+The INTEL_performance_query extension provides a list of queries that
+a user can select to monitor a particular workload. Each query reports
+different sets of counters (roughly looking at different parts of the
+hardware, i.e. caches/fixed functions/etc...).
+
+Each query has an associated configuration that we need to program
+into the hardware before using the query. Up to now, we provided
+predefined queries. This change allows the user to build its own query
+(and associated configuration) externally, and have the i965 driver
+use that configuration through a new query named :
+
+   Intel_Raw_Hardware_Counters_Set_0_Query
+
+When this query is selected, the i965 driver will report raw counters
+deltas (meaning their values need to be interpreted by the user, as
+opposed to existing queries that provide human readable values).
+
+This change is also useful for debug purposes for building new
+pre-defined queries and verifying the underlying numbers make sense
+before writing equations for user readable output.
+
+This change's purpose is also to enable GPA. GPA uses a library called
+MDAPI that processes raw counter data. MDAPI expects raw data to have
+a certain layout (per generation which is a bit unfortunate...). This
+change also embeds the expected data layouts.
+
+v2: Enable raw queries on gen 7->11, v1 had 7->9 (Lionel)
+
+Signed-off-by: Lionel Landwerlin <lionel.g.landwerlin@intel.com>
+---
+ src/mesa/drivers/dri/i965/Makefile.sources         |   2 +
+ src/mesa/drivers/dri/i965/brw_context.h            |   3 +-
+ src/mesa/drivers/dri/i965/brw_performance_query.c  | 112 ++++--
+ .../drivers/dri/i965/brw_performance_query_mdapi.c | 379 +++++++++++++++++++++
+ .../drivers/dri/i965/brw_performance_query_mdapi.h |  39 +++
+ src/mesa/drivers/dri/i965/meson.build              |   2 +
+ 6 files changed, 510 insertions(+), 27 deletions(-)
+ create mode 100644 src/mesa/drivers/dri/i965/brw_performance_query_mdapi.c
+ create mode 100644 src/mesa/drivers/dri/i965/brw_performance_query_mdapi.h
+
+diff --git a/src/mesa/drivers/dri/i965/Makefile.sources b/src/mesa/drivers/dri/i965/Makefile.sources
+index 582a0b1..d568a08 100644
+--- a/src/mesa/drivers/dri/i965/Makefile.sources
++++ b/src/mesa/drivers/dri/i965/Makefile.sources
+@@ -37,6 +37,8 @@ i965_FILES = \
+ 	brw_pipe_control.h \
+ 	brw_performance_query.h \
+ 	brw_performance_query.c \
++	brw_performance_query_mdapi.h \
++	brw_performance_query_mdapi.c \
+ 	brw_performance_query_metrics.h \
+ 	brw_program.c \
+ 	brw_program.h \
+diff --git a/src/mesa/drivers/dri/i965/brw_context.h b/src/mesa/drivers/dri/i965/brw_context.h
+index c3ab1d8..1b21ac4 100644
+--- a/src/mesa/drivers/dri/i965/brw_context.h
++++ b/src/mesa/drivers/dri/i965/brw_context.h
+@@ -686,7 +686,8 @@ struct gen_l3_config;
+ 
+ enum brw_query_kind {
+    OA_COUNTERS,
+-   PIPELINE_STATS
++   OA_COUNTERS_RAW,
++   PIPELINE_STATS,
+ };
+ 
+ struct brw_perf_query_register_prog {
+diff --git a/src/mesa/drivers/dri/i965/brw_performance_query.c b/src/mesa/drivers/dri/i965/brw_performance_query.c
+index d20bc58..aed8541 100644
+--- a/src/mesa/drivers/dri/i965/brw_performance_query.c
++++ b/src/mesa/drivers/dri/i965/brw_performance_query.c
+@@ -71,6 +71,7 @@
+ #include "brw_context.h"
+ #include "brw_defines.h"
+ #include "brw_performance_query.h"
++#include "brw_performance_query_mdapi.h"
+ #include "brw_oa_metrics.h"
+ #include "intel_batchbuffer.h"
+ 
+@@ -266,6 +267,44 @@ static bool
+ brw_is_perf_query_ready(struct gl_context *ctx,
+                         struct gl_perf_query_object *o);
+ 
++static uint64_t
++brw_perf_query_get_metric_id(struct brw_context *brw,
++                             const struct brw_perf_query_info *query)
++{
++   /* These queries are know not to ever change, their config ID has been
++    * loaded upon the first query creation. No need to look them up again.
++    */
++   if (query->kind == OA_COUNTERS)
++      return query->oa_metrics_set_id;
++
++   assert(query->kind == OA_COUNTERS_RAW);
++
++   /* Raw queries can be reprogrammed up by an external application/library.
++    * When a raw query is used for the first time it's id is set to a value !=
++    * 0. When it stops being used the id returns to 0. No need to reload the
++    * ID when it's already loaded.
++    */
++   if (query->oa_metrics_set_id != 0) {
++      DBG("Raw query '%s' guid=%s using cached ID: %"PRIu64"\n",
++          query->name, query->guid, query->oa_metrics_set_id);
++      return query->oa_metrics_set_id;
++   }
++
++   char metric_id_file[280];
++   snprintf(metric_id_file, sizeof(metric_id_file),
++            "%s/metrics/%s/id", brw->perfquery.sysfs_dev_dir, query->guid);
++
++   struct brw_perf_query_info *raw_query = (struct brw_perf_query_info *)query;
++   if (!read_file_uint64(metric_id_file, &raw_query->oa_metrics_set_id)) {
++      DBG("Unable to read query guid=%s ID, falling back to test config\n", query->guid);
++      raw_query->oa_metrics_set_id = 1ULL;
++   } else {
++      DBG("Raw query '%s'guid=%s loaded ID: %"PRIu64"\n",
++          query->name, query->guid, query->oa_metrics_set_id);
++   }
++   return query->oa_metrics_set_id;
++}
++
+ static void
+ dump_perf_query_callback(GLuint id, void *query_void, void *brw_void)
+ {
+@@ -275,6 +314,7 @@ dump_perf_query_callback(GLuint id, void *query_void, void *brw_void)
+ 
+    switch (obj->query->kind) {
+    case OA_COUNTERS:
++   case OA_COUNTERS_RAW:
+       DBG("%4d: %-6s %-8s BO: %-4s OA data: %-10s %-15s\n",
+           id,
+           o->Used ? "Dirty," : "New,",
+@@ -383,6 +423,7 @@ brw_get_perf_query_info(struct gl_context *ctx,
+ 
+    switch (query->kind) {
+    case OA_COUNTERS:
++   case OA_COUNTERS_RAW:
+       *n_active = brw->perfquery.n_active_oa_queries;
+       break;
+ 
+@@ -940,12 +981,18 @@ open_i915_perf_oa_stream(struct brw_context *brw,
+ }
+ 
+ static void
+-close_perf(struct brw_context *brw)
++close_perf(struct brw_context *brw,
++           const struct brw_perf_query_info *query)
+ {
+    if (brw->perfquery.oa_stream_fd != -1) {
+       close(brw->perfquery.oa_stream_fd);
+       brw->perfquery.oa_stream_fd = -1;
+    }
++   if (query->kind == OA_COUNTERS_RAW) {
++      struct brw_perf_query_info *raw_query =
++         (struct brw_perf_query_info *) query;
++      raw_query->oa_metrics_set_id = 0;
++   }
+ }
+ 
+ static void
+@@ -1033,6 +1080,7 @@ brw_begin_perf_query(struct gl_context *ctx,
+ 
+    switch (query->kind) {
+    case OA_COUNTERS:
++   case OA_COUNTERS_RAW: {
+ 
+       /* Opening an i915 perf stream implies exclusive access to the OA unit
+        * which will generate counter reports for a specific counter set with a
+@@ -1040,14 +1088,17 @@ brw_begin_perf_query(struct gl_context *ctx,
+        * require a different counter set or format unless we get an opportunity
+        * to close the stream and open a new one...
+        */
++      uint64_t metric_id = brw_perf_query_get_metric_id(brw, query);
++
+       if (brw->perfquery.oa_stream_fd != -1 &&
+-          brw->perfquery.current_oa_metrics_set_id !=
+-          query->oa_metrics_set_id) {
++          brw->perfquery.current_oa_metrics_set_id != metric_id) {
+ 
+-         if (brw->perfquery.n_oa_users != 0)
++         if (brw->perfquery.n_oa_users != 0) {
++            DBG("WARNING: Begin(%d) failed already using perf config=%i/%"PRIu64"\n",
++                o->Id, brw->perfquery.current_oa_metrics_set_id, metric_id);
+             return false;
+-         else
+-            close_perf(brw);
++         } else
++            close_perf(brw, query);
+       }
+ 
+       /* If the OA counters aren't already on, enable them. */
+@@ -1109,17 +1160,15 @@ brw_begin_perf_query(struct gl_context *ctx,
+              prev_sample_period / 1000000ul);
+ 
+          if (!open_i915_perf_oa_stream(brw,
+-                                       query->oa_metrics_set_id,
++                                       metric_id,
+                                        query->oa_format,
+                                        period_exponent,
+                                        screen->fd, /* drm fd */
+                                        brw->hw_ctx))
+             return false;
+       } else {
+-         assert(brw->perfquery.current_oa_metrics_set_id ==
+-                query->oa_metrics_set_id &&
+-                brw->perfquery.current_oa_format ==
+-                query->oa_format);
++         assert(brw->perfquery.current_oa_metrics_set_id == metric_id &&
++                brw->perfquery.current_oa_format == query->oa_format);
+       }
+ 
+       if (!inc_n_oa_users(brw)) {
+@@ -1182,6 +1231,7 @@ brw_begin_perf_query(struct gl_context *ctx,
+ 
+       add_to_unaccumulated_query_list(brw, obj);
+       break;
++   }
+ 
+    case PIPELINE_STATS:
+       if (obj->pipeline_stats.bo) {
+@@ -1232,6 +1282,7 @@ brw_end_perf_query(struct gl_context *ctx,
+ 
+    switch (obj->query->kind) {
+    case OA_COUNTERS:
++   case OA_COUNTERS_RAW:
+ 
+       /* NB: It's possible that the query will have already been marked
+        * as 'accumulated' if an error was seen while reading samples
+@@ -1277,6 +1328,7 @@ brw_wait_perf_query(struct gl_context *ctx, struct gl_perf_query_object *o)
+ 
+    switch (obj->query->kind) {
+    case OA_COUNTERS:
++   case OA_COUNTERS_RAW:
+       bo = obj->oa.bo;
+       break;
+ 
+@@ -1305,7 +1357,8 @@ brw_wait_perf_query(struct gl_context *ctx, struct gl_perf_query_object *o)
+     * we need to wait for all the reports to come in before we can
+     * read them.
+     */
+-   if (obj->query->kind == OA_COUNTERS) {
++   if (obj->query->kind == OA_COUNTERS ||
++       obj->query->kind == OA_COUNTERS_RAW) {
+       while (!read_oa_samples_for_query(brw, obj))
+          ;
+    }
+@@ -1323,6 +1376,7 @@ brw_is_perf_query_ready(struct gl_context *ctx,
+ 
+    switch (obj->query->kind) {
+    case OA_COUNTERS:
++   case OA_COUNTERS_RAW:
+       return (obj->oa.results_accumulated ||
+               (obj->oa.bo &&
+                !brw_batch_references(&brw->batch, obj->oa.bo) &&
+@@ -1416,16 +1470,6 @@ get_oa_counter_data(struct brw_context *brw,
+    int n_counters = query->n_counters;
+    int written = 0;
+ 
+-   if (!obj->oa.results_accumulated) {
+-      read_gt_frequency(brw, obj);
+-      read_slice_unslice_frequencies(brw, obj);
+-      accumulate_oa_reports(brw, obj);
+-      assert(obj->oa.results_accumulated);
+-
+-      brw_bo_unmap(obj->oa.bo);
+-      obj->oa.map = NULL;
+-   }
+-
+    for (int i = 0; i < n_counters; i++) {
+       const struct brw_perf_query_counter *counter = &query->counters[i];
+       uint64_t *out_uint64;
+@@ -1515,7 +1559,20 @@ brw_get_perf_query_data(struct gl_context *ctx,
+ 
+    switch (obj->query->kind) {
+    case OA_COUNTERS:
+-      written = get_oa_counter_data(brw, obj, data_size, (uint8_t *)data);
++   case OA_COUNTERS_RAW:
++      if (!obj->oa.results_accumulated) {
++         read_gt_frequency(brw, obj);
++         read_slice_unslice_frequencies(brw, obj);
++         accumulate_oa_reports(brw, obj);
++         assert(obj->oa.results_accumulated);
++
++         brw_bo_unmap(obj->oa.bo);
++         obj->oa.map = NULL;
++      }
++      if (obj->query->kind == OA_COUNTERS)
++         written = get_oa_counter_data(brw, obj, data_size, (uint8_t *)data);
++      else
++         written = brw_perf_query_get_mdapi_oa_data(brw, obj, data_size, (uint8_t *)data);
+       break;
+ 
+    case PIPELINE_STATS:
+@@ -1571,6 +1628,7 @@ brw_delete_perf_query(struct gl_context *ctx,
+ 
+    switch (obj->query->kind) {
+    case OA_COUNTERS:
++   case OA_COUNTERS_RAW:
+       if (obj->oa.bo) {
+          if (!obj->oa.results_accumulated) {
+             drop_from_unaccumulated_query_list(brw, obj);
+@@ -1596,16 +1654,16 @@ brw_delete_perf_query(struct gl_context *ctx,
+       break;
+    }
+ 
+-   free(obj);
+-
+    /* As an indication that the INTEL_performance_query extension is no
+     * longer in use, it's a good time to free our cache of sample
+     * buffers and close any current i915-perf stream.
+     */
+    if (--brw->perfquery.n_query_instances == 0) {
+       free_sample_bufs(brw);
+-      close_perf(brw);
++      close_perf(brw, obj->query);
+    }
++
++   free(obj);
+ }
+ 
+ /******************************************************************************/
+@@ -2128,6 +2186,8 @@ brw_init_perf_query_info(struct gl_context *ctx)
+          init_oa_configs(brw);
+       else
+          enumerate_sysfs_metrics(brw);
++
++      brw_perf_query_register_mdapi_oa_query(brw);
+    }
+ 
+    brw->perfquery.unaccumulated =
+diff --git a/src/mesa/drivers/dri/i965/brw_performance_query_mdapi.c b/src/mesa/drivers/dri/i965/brw_performance_query_mdapi.c
+new file mode 100644
+index 0000000..cc315ce
+--- /dev/null
++++ b/src/mesa/drivers/dri/i965/brw_performance_query_mdapi.c
+@@ -0,0 +1,379 @@
++/*
++ * Copyright © 2018 Intel Corporation
++ *
++ * Permission is hereby granted, free of charge, to any person obtaining a
++ * copy of this software and associated documentation files (the "Software"),
++ * to deal in the Software without restriction, including without limitation
++ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
++ * and/or sell copies of the Software, and to permit persons to whom the
++ * Software is furnished to do so, subject to the following conditions:
++ *
++ * The above copyright notice and this permission notice (including the next
++ * paragraph) shall be included in all copies or substantial portions of the
++ * Software.
++ *
++ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
++ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
++ * IN THE SOFTWARE.
++ */
++
++#include "brw_performance_query.h"
++#include "brw_performance_query_mdapi.h"
++
++/**
++ * Data format expected by MDAPI.
++ */
++
++struct mdapi_gen7_metrics {
++   uint64_t TotalTime;
++
++   uint64_t ACounters[45];
++   uint64_t NOACounters[16];
++
++   uint64_t PerfCounter1;
++   uint64_t PerfCounter2;
++   uint32_t SplitOccured;
++   uint32_t CoreFrequencyChanged;
++   uint64_t CoreFrequency;
++   uint32_t ReportId;
++   uint32_t ReportsCount;
++};
++
++#define GTDI_QUERY_BDW_METRICS_OA_COUNT         36
++#define GTDI_QUERY_BDW_METRICS_OA_40b_COUNT     32
++#define GTDI_QUERY_BDW_METRICS_NOA_COUNT        16
++struct mdapi_gen8_metrics {
++   uint64_t TotalTime;
++   uint64_t GPUTicks;
++   uint64_t OaCntr[GTDI_QUERY_BDW_METRICS_OA_COUNT];
++   uint64_t NoaCntr[GTDI_QUERY_BDW_METRICS_NOA_COUNT];
++   uint64_t BeginTimestamp;
++   uint64_t Reserved1;
++   uint64_t Reserved2;
++   uint32_t Reserved3;
++   uint32_t OverrunOccured;
++   uint64_t MarkerUser;
++   uint64_t MarkerDriver;
++
++   uint64_t SliceFrequency;
++   uint64_t UnsliceFrequency;
++   uint64_t PerfCounter1;
++   uint64_t PerfCounter2;
++   uint32_t SplitOccured;
++   uint32_t CoreFrequencyChanged;
++   uint64_t CoreFrequency;
++   uint32_t ReportId;
++   uint32_t ReportsCount;
++};
++
++#define GTDI_MAX_READ_REGS 16
++
++struct mdapi_gen9_metrics {
++   uint64_t TotalTime;
++   uint64_t GPUTicks;
++   uint64_t OaCntr[GTDI_QUERY_BDW_METRICS_OA_COUNT];
++   uint64_t NoaCntr[GTDI_QUERY_BDW_METRICS_NOA_COUNT];
++   uint64_t BeginTimestamp;
++   uint64_t Reserved1;
++   uint64_t Reserved2;
++   uint32_t Reserved3;
++   uint32_t OverrunOccured;
++   uint64_t MarkerUser;
++   uint64_t MarkerDriver;
++
++   uint64_t SliceFrequency;
++   uint64_t UnsliceFrequency;
++   uint64_t PerfCounter1;
++   uint64_t PerfCounter2;
++   uint32_t SplitOccured;
++   uint32_t CoreFrequencyChanged;
++   uint64_t CoreFrequency;
++   uint32_t ReportId;
++   uint32_t ReportsCount;
++
++   uint64_t UserCntr[GTDI_MAX_READ_REGS];
++   uint32_t UserCntrCfgId;
++   uint32_t Reserved4;
++};
++
++int
++brw_perf_query_get_mdapi_oa_data(struct brw_context *brw,
++                                 struct brw_perf_query_object *obj,
++                                 size_t data_size,
++                                 uint8_t *data)
++{
++   const struct gen_device_info *devinfo = &brw->screen->devinfo;
++
++   switch (devinfo->gen) {
++   case 7: {
++      struct mdapi_gen7_metrics *mdapi_data = (struct mdapi_gen7_metrics *) data;
++
++      if (data_size < sizeof(*mdapi_data))
++         return 0;
++
++      assert(devinfo->is_haswell || devinfo->is_cherryview);
++
++      for (int i = 0; i < ARRAY_SIZE(mdapi_data->ACounters); i++)
++         mdapi_data->ACounters[i] = obj->oa.accumulator[1 + i];
++
++      for (int i = 0; i < ARRAY_SIZE(mdapi_data->NOACounters); i++) {
++         mdapi_data->NOACounters[i] =
++            obj->oa.accumulator[1 + ARRAY_SIZE(mdapi_data->ACounters) + i];
++      }
++
++      mdapi_data->ReportsCount = obj->oa.reports_accumulated;
++      mdapi_data->TotalTime = brw_timebase_scale(brw, obj->oa.accumulator[0]);
++      mdapi_data->CoreFrequency = obj->oa.gt_frequency[1];
++      mdapi_data->CoreFrequencyChanged = obj->oa.gt_frequency[0] != obj->oa.gt_frequency[1];
++      return sizeof(*mdapi_data);
++   }
++   case 8: {
++      struct mdapi_gen8_metrics *mdapi_data = (struct mdapi_gen8_metrics *) data;
++
++      if (data_size < sizeof(*mdapi_data))
++         return 0;
++
++      for (int i = 0; i < ARRAY_SIZE(mdapi_data->OaCntr); i++)
++         mdapi_data->OaCntr[i] = obj->oa.accumulator[2 + i];
++      for (int i = 0; i < ARRAY_SIZE(mdapi_data->NoaCntr); i++) {
++         mdapi_data->NoaCntr[i] =
++            obj->oa.accumulator[2 + ARRAY_SIZE(mdapi_data->OaCntr) + i];
++      }
++
++      mdapi_data->ReportId = obj->oa.hw_id;
++      mdapi_data->ReportsCount = obj->oa.reports_accumulated;
++      mdapi_data->TotalTime = brw_timebase_scale(brw, obj->oa.accumulator[0]);
++      mdapi_data->GPUTicks = obj->oa.accumulator[1];
++      mdapi_data->CoreFrequency = obj->oa.gt_frequency[1];
++      mdapi_data->CoreFrequencyChanged = obj->oa.gt_frequency[0] != obj->oa.gt_frequency[1];
++      mdapi_data->SliceFrequency = (obj->oa.slice_frequency[0] + obj->oa.slice_frequency[1]) / 2ULL;
++      mdapi_data->UnsliceFrequency = (obj->oa.unslice_frequency[0] + obj->oa.unslice_frequency[1]) / 2ULL;
++
++      return sizeof(*mdapi_data);
++   }
++   case 9:
++   case 10:
++   case 11: {
++      struct mdapi_gen9_metrics *mdapi_data = (struct mdapi_gen9_metrics *) data;
++
++      if (data_size < sizeof(*mdapi_data))
++         return 0;
++
++      for (int i = 0; i < ARRAY_SIZE(mdapi_data->OaCntr); i++)
++         mdapi_data->OaCntr[i] = obj->oa.accumulator[2 + i];
++      for (int i = 0; i < ARRAY_SIZE(mdapi_data->NoaCntr); i++) {
++         mdapi_data->NoaCntr[i] =
++            obj->oa.accumulator[2 + ARRAY_SIZE(mdapi_data->OaCntr) + i];
++      }
++
++      mdapi_data->ReportId = obj->oa.hw_id;
++      mdapi_data->ReportsCount = obj->oa.reports_accumulated;
++      mdapi_data->TotalTime = brw_timebase_scale(brw, obj->oa.accumulator[0]);
++      mdapi_data->GPUTicks = obj->oa.accumulator[1];
++      mdapi_data->CoreFrequency = obj->oa.gt_frequency[1];
++      mdapi_data->CoreFrequencyChanged = obj->oa.gt_frequency[0] != obj->oa.gt_frequency[1];
++      mdapi_data->SliceFrequency = (obj->oa.slice_frequency[0] + obj->oa.slice_frequency[1]) / 2ULL;
++      mdapi_data->UnsliceFrequency = (obj->oa.unslice_frequency[0] + obj->oa.unslice_frequency[1]) / 2ULL;
++
++      return sizeof(*mdapi_data);
++   }
++   default:
++      unreachable("unexpected gen");
++   }
++
++   return 0;
++}
++
++static void
++fill_mdapi_perf_query_counter(struct brw_perf_query_info *query,
++                              const char *name,
++                              uint32_t data_offset,
++                              uint32_t data_size,
++                              GLenum data_type)
++{
++   struct brw_perf_query_counter *counter = &query->counters[query->n_counters];
++
++   counter->name = name;
++   counter->desc = "Raw counter value";
++   counter->data_type = data_type;
++   counter->offset = data_offset;
++   counter->size = data_size;
++   assert(counter->offset + counter->size <= query->data_size);
++
++   query->n_counters++;
++}
++
++#define MDAPI_QUERY_ADD_COUNTER(query, struct_name, field_name, type_name) \
++   fill_mdapi_perf_query_counter(query, #field_name,                    \
++                                 (uint8_t *) &struct_name.field_name -  \
++                                 (uint8_t *) &struct_name,              \
++                                 sizeof(struct_name.field_name),        \
++                                 GL_PERFQUERY_COUNTER_DATA_##type_name##_INTEL)
++#define MDAPI_QUERY_ADD_ARRAY_COUNTER(ctx, query, struct_name, field_name, idx, type_name) \
++   fill_mdapi_perf_query_counter(query,                                 \
++                                 ralloc_asprintf(ctx, "%s%i", #field_name, idx), \
++                                 (uint8_t *) &struct_name.field_name[idx] - \
++                                 (uint8_t *) &struct_name,              \
++                                 sizeof(struct_name.field_name[0]),     \
++                                 GL_PERFQUERY_COUNTER_DATA_##type_name##_INTEL)
++
++void
++brw_perf_query_register_mdapi_oa_query(struct brw_context *brw)
++{
++   const struct gen_device_info *devinfo = &brw->screen->devinfo;
++
++   /* MDAPI requires different structures for pretty much every generation
++    * (right now we have definitions for gen 7 to 11).
++    */
++   if (!(devinfo->gen >= 7 && devinfo->gen <= 11))
++      return;
++
++   struct brw_perf_query_info *query = brw_perf_query_append_query_info(brw);
++
++   query->kind = OA_COUNTERS_RAW;
++   query->name = "Intel_Raw_Hardware_Counters_Set_0_Query";
++   /* Guid has to matches with MDAPI's. */
++   query->guid = "2f01b241-7014-42a7-9eb6-a925cad3daba";
++   query->n_counters = 0;
++   query->oa_metrics_set_id = 0; /* Set by MDAPI */
++
++   int n_counters;
++   switch (devinfo->gen) {
++   case 7: {
++      query->oa_format = I915_OA_FORMAT_A45_B8_C8;
++
++      struct mdapi_gen7_metrics metric_data;
++      query->data_size = sizeof(metric_data);
++
++      n_counters = 1 + 45 + 16 + 7;
++      query->counters =
++         rzalloc_array_size(brw->perfquery.queries,
++                            sizeof(*query->counters), n_counters);
++
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, TotalTime, UINT64);
++      for (int i = 0; i < ARRAY_SIZE(metric_data.ACounters); i++) {
++         MDAPI_QUERY_ADD_ARRAY_COUNTER(brw->perfquery.queries,
++                                       query, metric_data, ACounters, i, UINT64);
++      }
++      for (int i = 0; i < ARRAY_SIZE(metric_data.NOACounters); i++) {
++         MDAPI_QUERY_ADD_ARRAY_COUNTER(brw->perfquery.queries,
++                                       query, metric_data, NOACounters, i, UINT64);
++      }
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, PerfCounter1, UINT64);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, PerfCounter2, UINT64);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, SplitOccured, BOOL32);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, CoreFrequencyChanged, BOOL32);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, CoreFrequency, UINT64);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, ReportId, UINT32);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, ReportsCount, UINT32);
++      break;
++   }
++   case 8: {
++      query->oa_format = I915_OA_FORMAT_A32u40_A4u32_B8_C8;
++
++      struct mdapi_gen8_metrics metric_data;
++      query->data_size = sizeof(metric_data);
++
++      n_counters = 2 + 36 + 16 + 16;
++      query->counters =
++         rzalloc_array_size(brw->perfquery.queries,
++                            sizeof(*query->counters), n_counters);
++
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, TotalTime, UINT64);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, GPUTicks, UINT64);
++      for (int i = 0; i < ARRAY_SIZE(metric_data.OaCntr); i++) {
++         MDAPI_QUERY_ADD_ARRAY_COUNTER(brw->perfquery.queries,
++                                       query, metric_data, OaCntr, i, UINT64);
++      }
++      for (int i = 0; i < ARRAY_SIZE(metric_data.NoaCntr); i++) {
++         MDAPI_QUERY_ADD_ARRAY_COUNTER(brw->perfquery.queries,
++                                       query, metric_data, NoaCntr, i, UINT64);
++      }
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, BeginTimestamp, UINT64);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, Reserved1, UINT64);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, Reserved2, UINT64);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, Reserved3, UINT32);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, OverrunOccured, BOOL32);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, MarkerUser, UINT64);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, MarkerDriver, UINT64);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, SliceFrequency, UINT64);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, UnsliceFrequency, UINT64);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, PerfCounter1, UINT64);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, PerfCounter2, UINT64);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, SplitOccured, BOOL32);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, CoreFrequencyChanged, BOOL32);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, CoreFrequency, UINT64);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, ReportId, UINT32);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, ReportsCount, UINT32);
++      break;
++   }
++   case 9:
++   case 10:
++   case 11: {
++      query->oa_format = I915_OA_FORMAT_A32u40_A4u32_B8_C8;
++
++      struct mdapi_gen9_metrics metric_data;
++      query->data_size = sizeof(metric_data);
++
++      n_counters = 2 + 36 + 16 + 16 + 16 + 2;
++      query->counters =
++         rzalloc_array_size(brw->perfquery.queries,
++                            sizeof(*query->counters), n_counters);
++
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, TotalTime, UINT64);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, GPUTicks, UINT64);
++      for (int i = 0; i < ARRAY_SIZE(metric_data.OaCntr); i++) {
++         MDAPI_QUERY_ADD_ARRAY_COUNTER(brw->perfquery.queries,
++                                       query, metric_data, OaCntr, i, UINT64);
++      }
++      for (int i = 0; i < ARRAY_SIZE(metric_data.NoaCntr); i++) {
++         MDAPI_QUERY_ADD_ARRAY_COUNTER(brw->perfquery.queries,
++                                       query, metric_data, NoaCntr, i, UINT64);
++      }
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, BeginTimestamp, UINT64);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, Reserved1, UINT64);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, Reserved2, UINT64);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, Reserved3, UINT32);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, OverrunOccured, BOOL32);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, MarkerUser, UINT64);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, MarkerDriver, UINT64);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, SliceFrequency, UINT64);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, UnsliceFrequency, UINT64);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, PerfCounter1, UINT64);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, PerfCounter2, UINT64);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, SplitOccured, BOOL32);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, CoreFrequencyChanged, BOOL32);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, CoreFrequency, UINT64);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, ReportId, UINT32);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, ReportsCount, UINT32);
++      for (int i = 0; i < ARRAY_SIZE(metric_data.UserCntr); i++) {
++         MDAPI_QUERY_ADD_ARRAY_COUNTER(brw->perfquery.queries,
++                                       query, metric_data, UserCntr, i, UINT64);
++      }
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, UserCntrCfgId, UINT32);
++      MDAPI_QUERY_ADD_COUNTER(query, metric_data, Reserved4, UINT32);
++      break;
++   }
++   default:
++      unreachable("Unsupported gen");
++      break;
++   }
++
++   assert(query->n_counters <= n_counters);
++
++   {
++      /* Accumulation buffer offsets copied from an actual query... */
++      const struct brw_perf_query_info *copy_query =
++         &brw->perfquery.queries[0];
++
++      query->gpu_time_offset = copy_query->gpu_time_offset;
++      query->gpu_clock_offset = copy_query->gpu_clock_offset;
++      query->a_offset = copy_query->a_offset;
++      query->b_offset = copy_query->b_offset;
++      query->c_offset = copy_query->c_offset;
++   }
++}
+diff --git a/src/mesa/drivers/dri/i965/brw_performance_query_mdapi.h b/src/mesa/drivers/dri/i965/brw_performance_query_mdapi.h
+new file mode 100644
+index 0000000..e6da3a2
+--- /dev/null
++++ b/src/mesa/drivers/dri/i965/brw_performance_query_mdapi.h
+@@ -0,0 +1,39 @@
++/*
++ * Copyright © 2018 Intel Corporation
++ *
++ * Permission is hereby granted, free of charge, to any person obtaining a
++ * copy of this software and associated documentation files (the "Software"),
++ * to deal in the Software without restriction, including without limitation
++ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
++ * and/or sell copies of the Software, and to permit persons to whom the
++ * Software is furnished to do so, subject to the following conditions:
++ *
++ * The above copyright notice and this permission notice (including the next
++ * paragraph) shall be included in all copies or substantial portions of the
++ * Software.
++ *
++ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
++ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
++ * IN THE SOFTWARE.
++ */
++
++#ifndef BRW_PERFORMANCE_QUERY_MDAPI_H
++#define BRW_PERFORMANCE_QUERY_MDAPI_H
++
++#include <stdint.h>
++
++struct brw_context;
++
++int brw_perf_query_get_mdapi_oa_data(struct brw_context *brw,
++                                     struct brw_perf_query_object *obj,
++                                     size_t data_size,
++                                     uint8_t *data);
++
++void brw_perf_query_register_mdapi_oa_query(struct brw_context *brw);
++
++
++#endif /* BRW_PERFORMANCE_QUERY_MDAPI_H */
+diff --git a/src/mesa/drivers/dri/i965/meson.build b/src/mesa/drivers/dri/i965/meson.build
+index 158dade..db2bbcc 100644
+--- a/src/mesa/drivers/dri/i965/meson.build
++++ b/src/mesa/drivers/dri/i965/meson.build
+@@ -56,6 +56,8 @@ files_i965 = files(
+   'brw_pipe_control.c',
+   'brw_performance_query.h',
+   'brw_performance_query.c',
++  'brw_performance_query_mdapi.h',
++  'brw_performance_query_mdapi.c',
+   'brw_performance_query_metrics.h',
+   'brw_program.c',
+   'brw_program.h',
+-- 
+2.7.4
+

@@ -1,0 +1,37 @@
+From d40f79e200c867148c08268b499ad0fc3cdadede Mon Sep 17 00:00:00 2001
+From: Kalyan Kondapally <kalyan.kondapally@intel.com>
+Date: Tue, 27 Mar 2018 20:21:53 -0700
+Subject: [PATCH 22/27] Enable more compiler options.
+
+Signed-off-by: Kalyan Kondapally <kalyan.kondapally@intel.com>
+---
+ Android.common.mk | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/Android.common.mk b/Android.common.mk
+index 77098d5..05d3e4a 100644
+--- a/Android.common.mk
++++ b/Android.common.mk
+@@ -74,6 +74,9 @@ LOCAL_CFLAGS += \
+ 	-DHAVE_ENDIAN_H \
+ 	-DHAVE_ZLIB \
+ 	-DMAJOR_IN_SYSMACROS \
++	-D_FORTIFY_SOURCE=2 \
++	-fstack-protector-strong \
++	-fPIE -fPIC \
+ 	-fvisibility=hidden \
+ 	-Wno-sign-compare \
+ 	-Wno-self-assign \
+@@ -86,6 +89,9 @@ LOCAL_CPPFLAGS += \
+ 	-D__STDC_CONSTANT_MACROS \
+ 	-D__STDC_FORMAT_MACROS \
+ 	-D__STDC_LIMIT_MACROS \
++	-D_FORTIFY_SOURCE=2 \
++	-fstack-protector-strong \
++	-fPIE -fPIC \
+ 	-Wno-error=non-virtual-dtor \
+ 	-Wno-non-virtual-dtor \
+ 	-Wno-delete-non-virtual-dtor \
+-- 
+2.7.4
+

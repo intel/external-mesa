@@ -1,0 +1,211 @@
+From 34420bdcd7b2d3c40d6fcb9155cae8eea81bedd5 Mon Sep 17 00:00:00 2001
+From: Kevin Rogovin <kevin.rogovin@intel.com>
+Date: Thu, 8 Mar 2018 14:53:23 +0200
+Subject: [PATCH 14/27] FROMLIST: i965: prevent using auxilary buffers when an
+ astc5x5 texture is present
+
+If ASTC5x5 textures are present, resolve all textures that the sampler
+accesses so that auxilary buffer is unneeded when the astc5x5 workaround
+is needed and also program the sampler state to not use the auxilary
+buffer as well.
+
+Signed-off-by: Kevin Rogovin <kevin.rogovin@intel.com>
+---
+ src/mesa/drivers/dri/i965/brw_compute.c          |  4 +-
+ src/mesa/drivers/dri/i965/brw_context.h          |  5 +-
+ src/mesa/drivers/dri/i965/brw_draw.c             | 73 +++++++++++++++++++++---
+ src/mesa/drivers/dri/i965/brw_wm_surface_state.c | 15 ++++-
+ 4 files changed, 83 insertions(+), 14 deletions(-)
+
+diff --git a/src/mesa/drivers/dri/i965/brw_compute.c b/src/mesa/drivers/dri/i965/brw_compute.c
+index 5ce899b..131ff77 100644
+--- a/src/mesa/drivers/dri/i965/brw_compute.c
++++ b/src/mesa/drivers/dri/i965/brw_compute.c
+@@ -177,7 +177,9 @@ brw_dispatch_compute_common(struct gl_context *ctx)
+ 
+    brw_validate_textures(brw);
+ 
+-   brw_predraw_resolve_inputs(brw, false, NULL);
++   enum brw_astc5x5_wa_mode_t astc5x5_wa_mode =
++      brw_predraw_resolve_inputs(brw, false, NULL);
++   gen9_set_astc5x5_wa_mode(brw, astc5x5_wa_mode);
+ 
+    /* Flush the batch if the batch/state buffers are nearly full.  We can
+     * grow them if needed, but this is not free, so we'd like to avoid it.
+diff --git a/src/mesa/drivers/dri/i965/brw_context.h b/src/mesa/drivers/dri/i965/brw_context.h
+index 7a7e09c..4eb9250 100644
+--- a/src/mesa/drivers/dri/i965/brw_context.h
++++ b/src/mesa/drivers/dri/i965/brw_context.h
+@@ -1345,8 +1345,9 @@ void intel_update_renderbuffers(__DRIcontext *context,
+                                 __DRIdrawable *drawable);
+ void intel_prepare_render(struct brw_context *brw);
+ 
+-void brw_predraw_resolve_inputs(struct brw_context *brw, bool rendering,
+-                                bool *draw_aux_buffer_disabled);
++enum brw_astc5x5_wa_mode_t
++brw_predraw_resolve_inputs(struct brw_context *brw, bool rendering,
++                           bool *draw_aux_buffer_disabled);
+ 
+ void intel_resolve_for_dri2_flush(struct brw_context *brw,
+                                   __DRIdrawable *drawable);
+diff --git a/src/mesa/drivers/dri/i965/brw_draw.c b/src/mesa/drivers/dri/i965/brw_draw.c
+index 4caaadd..0c7c4ad 100644
+--- a/src/mesa/drivers/dri/i965/brw_draw.c
++++ b/src/mesa/drivers/dri/i965/brw_draw.c
+@@ -395,8 +395,10 @@ mark_textures_used_for_txf(BITSET_WORD *used_for_txf,
+  *
+  * Resolve the depth buffer's HiZ buffer, resolve the depth buffer of each
+  * enabled depth texture, and flush the render cache for any dirty textures.
++ * In addition, if the ASTC5x5 workaround is needed and if ASTC5x5 textures
++ * are present, resolve textures so that auxilary buffers are not needed.
+  */
+-void
++enum brw_astc5x5_wa_mode_t
+ brw_predraw_resolve_inputs(struct brw_context *brw, bool rendering,
+                            bool *draw_aux_buffer_disabled)
+ {
+@@ -415,8 +417,33 @@ brw_predraw_resolve_inputs(struct brw_context *brw, bool rendering,
+       mark_textures_used_for_txf(used_for_txf, ctx->ComputeProgram._Current);
+    }
+ 
+-   /* Resolve depth buffer and render cache of each enabled texture. */
+    int maxEnabledUnit = ctx->Texture._MaxEnabledTexImageUnit;
++   bool disable_aux = false;
++   bool texture_astc5x5_present = false;
++   bool texture_with_auxilary_present = false;
++
++   if (gen9_astc5x5_wa_required(brw)) {
++      /* walk through all the texture units to see if an ASTC5x5 and/or
++       * a texture with an auxilary buffer is to be accessed.
++       */
++      for (int i = 0; i <= maxEnabledUnit; i++) {
++         if (!ctx->Texture.Unit[i]._Current)
++            continue;
++         tex_obj = intel_texture_object(ctx->Texture.Unit[i]._Current);
++         if (!tex_obj)
++            continue;
++         if (tex_obj->mt && tex_obj->mt->aux_usage != ISL_AUX_USAGE_NONE) {
++            texture_with_auxilary_present = true;
++         }
++         if (tex_obj->_Format == MESA_FORMAT_RGBA_ASTC_5x5 ||
++             tex_obj->_Format == MESA_FORMAT_SRGB8_ALPHA8_ASTC_5x5) {
++            texture_astc5x5_present = true;
++         }
++      }
++      disable_aux = texture_astc5x5_present;
++   }
++
++   /* Resolve depth buffer and render cache of each enabled texture. */
+    for (int i = 0; i <= maxEnabledUnit; i++) {
+       if (!ctx->Texture.Unit[i]._Current)
+ 	 continue;
+@@ -448,9 +475,16 @@ brw_predraw_resolve_inputs(struct brw_context *brw, bool rendering,
+                                      "for sampling");
+       }
+ 
+-      intel_miptree_prepare_texture(brw, tex_obj->mt, view_format,
+-                                    min_level, num_levels,
+-                                    min_layer, num_layers);
++      if (!disable_aux) {
++         intel_miptree_prepare_texture(brw, tex_obj->mt, view_format,
++                                       min_level, num_levels,
++                                       min_layer, num_layers);
++      } else {
++         intel_miptree_prepare_access(brw, tex_obj->mt,
++                                      min_level, num_levels,
++                                      min_layer, num_layers,
++                                      ISL_AUX_USAGE_NONE, false);
++      }
+ 
+       /* If any programs are using it with texelFetch, we may need to also do
+        * a prepare with an sRGB format to ensure texelFetch works "properly".
+@@ -459,9 +493,16 @@ brw_predraw_resolve_inputs(struct brw_context *brw, bool rendering,
+          enum isl_format txf_format =
+             translate_tex_format(brw, tex_obj->_Format, GL_DECODE_EXT);
+          if (txf_format != view_format) {
+-            intel_miptree_prepare_texture(brw, tex_obj->mt, txf_format,
+-                                          min_level, num_levels,
+-                                          min_layer, num_layers);
++            if (!disable_aux) {
++               intel_miptree_prepare_texture(brw, tex_obj->mt, txf_format,
++                                             min_level, num_levels,
++                                             min_layer, num_layers);
++            } else {
++               intel_miptree_prepare_access(brw, tex_obj->mt,
++                                            min_level, num_levels,
++                                            min_layer, num_layers,
++                                            ISL_AUX_USAGE_NONE, false);
++            }
+          }
+       }
+ 
+@@ -497,6 +538,17 @@ brw_predraw_resolve_inputs(struct brw_context *brw, bool rendering,
+          }
+       }
+    }
++
++   if (gen9_astc5x5_wa_required(brw)) {
++      if (texture_astc5x5_present) {
++         assert(disable_aux);
++         return BRW_ASTC5x5_WA_MODE_HAS_ASTC5x5;
++      } else if (texture_with_auxilary_present) {
++         return BRW_ASTC5x5_WA_MODE_HAS_AUX;
++      }
++   }
++
++   return BRW_ASTC5x5_WA_MODE_NONE;
+ }
+ 
+ static void
+@@ -740,9 +792,12 @@ brw_prepare_drawing(struct gl_context *ctx,
+     * this draw call.
+     */
+    bool draw_aux_buffer_disabled[MAX_DRAW_BUFFERS] = { };
+-   brw_predraw_resolve_inputs(brw, true, draw_aux_buffer_disabled);
++   enum brw_astc5x5_wa_mode_t astc5x5_wa_mode =
++      brw_predraw_resolve_inputs(brw, true, draw_aux_buffer_disabled);
+    brw_predraw_resolve_framebuffer(brw, draw_aux_buffer_disabled);
+ 
++   gen9_set_astc5x5_wa_mode(brw, astc5x5_wa_mode);
++
+    /* Bind all inputs, derive varying and size information:
+     */
+    brw_merge_inputs(brw, arrays);
+diff --git a/src/mesa/drivers/dri/i965/brw_wm_surface_state.c b/src/mesa/drivers/dri/i965/brw_wm_surface_state.c
+index 3fb101b..3453184 100644
+--- a/src/mesa/drivers/dri/i965/brw_wm_surface_state.c
++++ b/src/mesa/drivers/dri/i965/brw_wm_surface_state.c
+@@ -475,7 +475,8 @@ swizzle_to_scs(GLenum swizzle, bool need_green_to_blue)
+    return (need_green_to_blue && scs == HSW_SCS_GREEN) ? HSW_SCS_BLUE : scs;
+ }
+ 
+-static void brw_update_texture_surface(struct gl_context *ctx,
++static void
++brw_update_texture_surface(struct gl_context *ctx,
+                            unsigned unit,
+                            uint32_t *surf_offset,
+                            bool for_gather,
+@@ -615,9 +616,19 @@ static void brw_update_texture_surface(struct gl_context *ctx,
+           obj->Target == GL_TEXTURE_CUBE_MAP_ARRAY)
+          view.usage |= ISL_SURF_USAGE_CUBE_BIT;
+ 
+-      enum isl_aux_usage aux_usage =
++      bool disable_aux =
++         (brw->astc5x5_wa_mode == BRW_ASTC5x5_WA_MODE_HAS_ASTC5x5);
++      enum isl_aux_usage aux_usage = (disable_aux) ? ISL_AUX_USAGE_NONE :
+          intel_miptree_texture_aux_usage(brw, mt, format);
+ 
++      assert(!gen9_astc5x5_wa_required(brw) ||
++             brw->astc5x5_wa_mode != BRW_ASTC5x5_WA_MODE_HAS_ASTC5x5 ||
++             aux_usage == ISL_AUX_USAGE_NONE);
++      assert(!gen9_astc5x5_wa_required(brw) ||
++             brw->astc5x5_wa_mode != BRW_ASTC5x5_WA_MODE_HAS_AUX ||
++             !(mesa_fmt == MESA_FORMAT_RGBA_ASTC_5x5 ||
++               mesa_fmt == MESA_FORMAT_SRGB8_ALPHA8_ASTC_5x5));
++
+       brw_emit_surface_state(brw, mt, mt->target, view, aux_usage,
+                              surf_offset, surf_index,
+                              0);
+-- 
+2.7.4
+

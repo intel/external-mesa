@@ -1,0 +1,33 @@
+From 875095cd565f953b3c9e7579e47298135ba0c25f Mon Sep 17 00:00:00 2001
+From: Kevin Strasser <kevin.strasser@intel.com>
+Date: Wed, 14 Mar 2018 18:51:34 -0700
+Subject: [PATCH 12/27] REVERTME: Disable EGL_KHR_gl_colorspace for dEQP wide
+ color tests
+
+Change-Id: I11a42a7af1e874c4e771bb64390d5baf79638d6c
+Jira: None.
+Test: Android CTS should PASS for below
+      dEQP-EGL.functional.wide_color#pbuffer_8888_colorspace_srgb
+      dEQP-EGL.functional.wide_color#window_8888_colorspace_srgb
+Signed-off-by: Kevin Strasser <kevin.strasser@intel.com>
+Signed-off-by: Kishore Kadiyala <kishore.kadiyala@intel.com>
+---
+ src/egl/drivers/dri2/egl_dri2.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/egl/drivers/dri2/egl_dri2.c b/src/egl/drivers/dri2/egl_dri2.c
+index a6deb87..3500e43 100644
+--- a/src/egl/drivers/dri2/egl_dri2.c
++++ b/src/egl/drivers/dri2/egl_dri2.c
+@@ -705,7 +705,7 @@ dri2_setup_screen(_EGLDisplay *disp)
+ 
+    if (dri2_renderer_query_integer(dri2_dpy,
+                                    __DRI2_RENDERER_HAS_FRAMEBUFFER_SRGB))
+-      disp->Extensions.KHR_gl_colorspace = EGL_TRUE;
++      disp->Extensions.KHR_gl_colorspace = EGL_FALSE;
+ 
+    if (dri2_dpy->image_driver ||
+        (dri2_dpy->dri2 && dri2_dpy->dri2->base.version >= 3) ||
+-- 
+2.7.4
+

@@ -1,0 +1,44 @@
+From 0ced8086a3c4f893857240622c40e1e501c3ac0e Mon Sep 17 00:00:00 2001
+From: Kalyan Kondapally <kalyan.kondapally@intel.com>
+Date: Fri, 12 May 2017 08:00:00 +0300
+Subject: [PATCH 02/27] AndroidIA: Make HAS_GRALLOC_DRM_HEADERS configurable.
+
+This patch adds support to be able to enable/disable Flink support
+depending on board configuration instead of having it always enabled.
+
+Signed-off-by: Marta Lofstedt <marta.lofstedt@intel.com>
+Signed-off-by: Kalyan Kondapally <kalyan.kondapally@intel.com>
+---
+ src/egl/Android.mk | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/egl/Android.mk b/src/egl/Android.mk
+index 16ccddc..8b3b354 100644
+--- a/src/egl/Android.mk
++++ b/src/egl/Android.mk
+@@ -41,7 +41,6 @@ LOCAL_SRC_FILES := \
+ LOCAL_CFLAGS := \
+ 	-D_EGL_NATIVE_PLATFORM=_EGL_PLATFORM_ANDROID \
+ 	-D_EGL_BUILT_IN_DRIVER_DRI2 \
+-	-DHAS_GRALLOC_DRM_HEADERS \
+ 	-DHAVE_ANDROID_PLATFORM
+ 
+ LOCAL_C_INCLUDES := \
+@@ -58,9 +57,13 @@ LOCAL_SHARED_LIBRARIES := \
+ 	libhardware \
+ 	liblog \
+ 	libcutils \
+-	libgralloc_drm \
+ 	libsync
+ 
++ifeq ($(ENABLE_FLINK_SUPPORT),1)
++LOCAL_SHARED_LIBRARIES += libgralloc_drm
++LOCAL_CFLAGS += -DHAS_GRALLOC_DRM_HEADERS
++endif
++
+ ifeq ($(filter $(MESA_ANDROID_MAJOR_VERSION), 4 5 6 7),)
+ LOCAL_SHARED_LIBRARIES += libnativewindow
+ endif
+-- 
+2.7.4
+

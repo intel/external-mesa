@@ -1,0 +1,143 @@
+From bb7be1df657a96eede8c85ed53120603e747029c Mon Sep 17 00:00:00 2001
+From: Kevin Rogovin <kevin.rogovin@intel.com>
+Date: Thu, 8 Mar 2018 14:53:22 +0200
+Subject: [PATCH 13/27] FROMLIST: i965: define astx5x5 workaround
+ infrastructure
+
+Gen9 GPU's suffer from a HW bug where the GPU will hang if
+the GPU accesses a texture with a an auxilary buffer and
+an ASTC5x5 texture without having a pipeline cs stall (and
+texture cache flush) between such accesses. This patch
+creates the infrastucture to track such potential texture
+accesses and to issue the required pipeline stalls.
+
+Signed-off-by: Kevin Rogovin <kevin.rogovin@intel.com>
+---
+ src/mesa/drivers/dri/i965/Makefile.sources  |  1 +
+ src/mesa/drivers/dri/i965/brw_context.c     |  2 ++
+ src/mesa/drivers/dri/i965/brw_context.h     | 25 +++++++++++++++++++++++++
+ src/mesa/drivers/dri/i965/gen9_astc5x5_wa.c | 24 ++++++++++++++++++++++++
+ src/mesa/drivers/dri/i965/meson.build       |  1 +
+ 5 files changed, 53 insertions(+)
+ create mode 100644 src/mesa/drivers/dri/i965/gen9_astc5x5_wa.c
+
+diff --git a/src/mesa/drivers/dri/i965/Makefile.sources b/src/mesa/drivers/dri/i965/Makefile.sources
+index 3479ceb..b75659e 100644
+--- a/src/mesa/drivers/dri/i965/Makefile.sources
++++ b/src/mesa/drivers/dri/i965/Makefile.sources
+@@ -78,6 +78,7 @@ i965_FILES = \
+ 	gen7_urb.c \
+ 	gen8_depth_state.c \
+ 	gen8_multisample_state.c \
++        gen9_astc5x5_wa.c \
+ 	hsw_queryobj.c \
+ 	hsw_sol.c \
+ 	intel_batchbuffer.c \
+diff --git a/src/mesa/drivers/dri/i965/brw_context.c b/src/mesa/drivers/dri/i965/brw_context.c
+index 01a3e16..feb70ea 100644
+--- a/src/mesa/drivers/dri/i965/brw_context.c
++++ b/src/mesa/drivers/dri/i965/brw_context.c
+@@ -1094,6 +1094,8 @@ brwCreateContext(gl_api api,
+    if (ctx->Extensions.INTEL_performance_query)
+       brw_init_performance_queries(brw);
+ 
++   brw->astc5x5_wa_mode = BRW_ASTC5x5_WA_MODE_NONE;
++
+    vbo_use_buffer_objects(ctx);
+    vbo_always_unmap_buffers(ctx);
+ 
+diff --git a/src/mesa/drivers/dri/i965/brw_context.h b/src/mesa/drivers/dri/i965/brw_context.h
+index f049d08..7a7e09c 100644
+--- a/src/mesa/drivers/dri/i965/brw_context.h
++++ b/src/mesa/drivers/dri/i965/brw_context.h
+@@ -167,6 +167,12 @@ enum brw_cache_id {
+    BRW_MAX_CACHE
+ };
+ 
++enum brw_astc5x5_wa_mode_t {
++   BRW_ASTC5x5_WA_MODE_NONE,
++   BRW_ASTC5x5_WA_MODE_HAS_ASTC5x5,
++   BRW_ASTC5x5_WA_MODE_HAS_AUX,
++};
++
+ enum brw_state_id {
+    /* brw_cache_ids must come first - see brw_program_cache.c */
+    BRW_STATE_URB_FENCE = BRW_MAX_CACHE,
+@@ -1307,6 +1313,14 @@ struct brw_context
+     */
+    enum isl_aux_usage draw_aux_usage[MAX_DRAW_BUFFERS];
+ 
++   /* Certain GEN's have a hardware bug where the sampler hangs if it attempts
++    * to access auxilary buffers and an ASTC5x5 compressed buffer. The
++    * workaround is to make sure that the texture cache is cleared between
++    * such accesses and that such accesses have a command streamer stall
++    * between them.
++    */
++   enum brw_astc5x5_wa_mode_t astc5x5_wa_mode;
++
+    __DRIcontext *driContext;
+    struct intel_screen *screen;
+ };
+@@ -1740,6 +1754,17 @@ void brw_query_internal_format(struct gl_context *ctx, GLenum target,
+                                GLenum internalFormat, GLenum pname,
+                                GLint *params);
+ 
++
++static inline
++bool gen9_astc5x5_wa_required(struct brw_context *brw)
++{
++   return brw->screen->devinfo.gen == 9;
++}
++
++/* gen9_astc5x5_wa.c */
++void gen9_set_astc5x5_wa_mode(struct brw_context *brw,
++                             enum brw_astc5x5_wa_mode_t mode);
++
+ #ifdef __cplusplus
+ }
+ #endif
+diff --git a/src/mesa/drivers/dri/i965/gen9_astc5x5_wa.c b/src/mesa/drivers/dri/i965/gen9_astc5x5_wa.c
+new file mode 100644
+index 0000000..b060d43
+--- /dev/null
++++ b/src/mesa/drivers/dri/i965/gen9_astc5x5_wa.c
+@@ -0,0 +1,24 @@
++#include "brw_context.h"
++#include "brw_defines.h"
++#include "intel_mipmap_tree.h"
++
++void
++gen9_set_astc5x5_wa_mode(struct brw_context *brw,
++                         enum brw_astc5x5_wa_mode_t mode)
++{
++   assert(mode == BRW_ASTC5x5_WA_MODE_NONE ||
++          gen9_astc5x5_wa_required(brw));
++
++   if (mode == BRW_ASTC5x5_WA_MODE_NONE ||
++       brw->astc5x5_wa_mode == mode) {
++      return;
++   }
++
++   if (brw->astc5x5_wa_mode != BRW_ASTC5x5_WA_MODE_NONE) {
++      const uint32_t flags = PIPE_CONTROL_CS_STALL |
++         PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE;
++      brw_emit_pipe_control_flush(brw, flags);
++   }
++
++   brw->astc5x5_wa_mode = mode;
++}
+diff --git a/src/mesa/drivers/dri/i965/meson.build b/src/mesa/drivers/dri/i965/meson.build
+index 4d8280d..69fa05a 100644
+--- a/src/mesa/drivers/dri/i965/meson.build
++++ b/src/mesa/drivers/dri/i965/meson.build
+@@ -97,6 +97,7 @@ files_i965 = files(
+   'gen7_urb.c',
+   'gen8_depth_state.c',
+   'gen8_multisample_state.c',
++  'gen9_astc5x5_wa.c',
+   'hsw_queryobj.c',
+   'hsw_sol.c',
+   'intel_batchbuffer.c',
+-- 
+2.7.4
+

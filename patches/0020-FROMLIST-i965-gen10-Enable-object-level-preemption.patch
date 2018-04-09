@@ -1,0 +1,109 @@
+From 3c6cc1d9525cc33d7fe7d3a11a4cc7e26c6596bb Mon Sep 17 00:00:00 2001
+From: Rafael Antognolli <rafael.antognolli@intel.com>
+Date: Thu, 15 Mar 2018 15:22:22 -0700
+Subject: [PATCH 20/27] FROMLIST: i965/gen10+: Enable object level preemption.
+
+Set bit when initializing context.
+
+Signed-off-by: Rafael Antognolli <rafael.antognolli@intel.com>
+---
+ src/mesa/drivers/dri/i965/brw_context.h      |  2 ++
+ src/mesa/drivers/dri/i965/brw_defines.h      |  5 +++++
+ src/mesa/drivers/dri/i965/brw_state.h        |  3 ++-
+ src/mesa/drivers/dri/i965/brw_state_upload.c | 25 +++++++++++++++++++++++++
+ 4 files changed, 34 insertions(+), 1 deletion(-)
+
+diff --git a/src/mesa/drivers/dri/i965/brw_context.h b/src/mesa/drivers/dri/i965/brw_context.h
+index 4eb9250..c3ab1d8 100644
+--- a/src/mesa/drivers/dri/i965/brw_context.h
++++ b/src/mesa/drivers/dri/i965/brw_context.h
+@@ -846,6 +846,8 @@ struct brw_context
+ 
+    GLuint primitive; /**< Hardware primitive, such as _3DPRIM_TRILIST. */
+ 
++   bool object_preemption; /**< Object level preemption enabled. */
++
+    GLenum reduced_primitive;
+ 
+    /**
+diff --git a/src/mesa/drivers/dri/i965/brw_defines.h b/src/mesa/drivers/dri/i965/brw_defines.h
+index 8bf6f68..f0994d3 100644
+--- a/src/mesa/drivers/dri/i965/brw_defines.h
++++ b/src/mesa/drivers/dri/i965/brw_defines.h
+@@ -1661,4 +1661,9 @@ enum brw_pixel_shader_coverage_mask_mode {
+ # define GLK_SCEC_BARRIER_MODE_3D_HULL     (1 << 7)
+ # define GLK_SCEC_BARRIER_MODE_MASK        REG_MASK(1 << 7)
+ 
++#define CS_CHICKEN1                        0x2580 /* Gen9+ */
++# define GEN9_REPLAY_MODE_MIDBUFFER             (0 << 0)
++# define GEN9_REPLAY_MODE_MIDOBJECT             (1 << 0)
++# define GEN9_REPLAY_MODE_MASK                  REG_MASK(1 << 0)
++
+ #endif
+diff --git a/src/mesa/drivers/dri/i965/brw_state.h b/src/mesa/drivers/dri/i965/brw_state.h
+index 9acb625..d5f8c96 100644
+--- a/src/mesa/drivers/dri/i965/brw_state.h
++++ b/src/mesa/drivers/dri/i965/brw_state.h
+@@ -132,7 +132,7 @@ void brw_disk_cache_write_compute_program(struct brw_context *brw);
+ void brw_disk_cache_write_render_programs(struct brw_context *brw);
+ 
+ /***********************************************************************
+- * brw_state.c
++ * brw_state_upload.c
+  */
+ void brw_upload_render_state(struct brw_context *brw);
+ void brw_render_state_finished(struct brw_context *brw);
+@@ -142,6 +142,7 @@ void brw_init_state(struct brw_context *brw);
+ void brw_destroy_state(struct brw_context *brw);
+ void brw_emit_select_pipeline(struct brw_context *brw,
+                               enum brw_pipeline pipeline);
++void brw_enable_obj_preemption(struct brw_context *brw, bool enable);
+ 
+ static inline void
+ brw_select_pipeline(struct brw_context *brw, enum brw_pipeline pipeline)
+diff --git a/src/mesa/drivers/dri/i965/brw_state_upload.c b/src/mesa/drivers/dri/i965/brw_state_upload.c
+index d8273aa..be757fc 100644
+--- a/src/mesa/drivers/dri/i965/brw_state_upload.c
++++ b/src/mesa/drivers/dri/i965/brw_state_upload.c
+@@ -45,6 +45,28 @@
+ #include "brw_cs.h"
+ #include "main/framebuffer.h"
+ 
++void
++brw_enable_obj_preemption(struct brw_context *brw, bool enable)
++{
++   const struct gen_device_info *devinfo = &brw->screen->devinfo;
++   assert(devinfo->gen >= 9);
++
++   if (enable == brw->object_preemption)
++      return;
++
++   /* A fixed function pipe flush is required before modifying this field */
++   brw_emit_pipe_control_flush(brw, PIPE_CONTROL_FLUSH_ENABLE);
++
++   bool replay_mode = enable ?
++      GEN9_REPLAY_MODE_MIDOBJECT : GEN9_REPLAY_MODE_MIDBUFFER;
++
++   /* enable object level preemption */
++   brw_load_register_imm32(brw, CS_CHICKEN1,
++                           replay_mode | GEN9_REPLAY_MODE_MASK);
++
++   brw->object_preemption = enable;
++}
++
+ static void
+ brw_upload_initial_gpu_state(struct brw_context *brw)
+ {
+@@ -139,6 +161,9 @@ brw_upload_initial_gpu_state(struct brw_context *brw)
+          ADVANCE_BATCH();
+       }
+    }
++
++   if (devinfo->gen >= 10)
++      brw_enable_obj_preemption(brw, true);
+ }
+ 
+ static inline const struct brw_tracked_state *
+-- 
+2.7.4
+

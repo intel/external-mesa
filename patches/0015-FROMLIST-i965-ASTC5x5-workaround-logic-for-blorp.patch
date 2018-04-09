@@ -1,0 +1,76 @@
+From 2f0ccd6dc6a502e97b1c074d166fa6a06b206cb7 Mon Sep 17 00:00:00 2001
+From: Kevin Rogovin <kevin.rogovin@intel.com>
+Date: Thu, 8 Mar 2018 14:53:24 +0200
+Subject: [PATCH 15/27] FROMLIST: i965: ASTC5x5 workaround logic for blorp
+
+Signed-off-by: Kevin Rogovin <kevin.rogovin@intel.com>
+---
+ src/intel/blorp/blorp.c                     | 16 ++++++++++++++++
+ src/intel/blorp/blorp.h                     |  6 ++++++
+ src/mesa/drivers/dri/i965/genX_blorp_exec.c |  9 +++++++++
+ 3 files changed, 31 insertions(+)
+
+diff --git a/src/intel/blorp/blorp.c b/src/intel/blorp/blorp.c
+index e348caf..1bd51a4 100644
+--- a/src/intel/blorp/blorp.c
++++ b/src/intel/blorp/blorp.c
+@@ -357,3 +357,19 @@ blorp_hiz_op(struct blorp_batch *batch, struct blorp_surf *surf,
+       batch->blorp->exec(batch, &params);
+    }
+ }
++
++bool
++blorp_params_src_has_astc5x5(const struct blorp_params *params)
++{
++   return params->src.enabled &&
++      (params->src.surf.format == ISL_FORMAT_ASTC_LDR_2D_5X5_U8SRGB ||
++       params->src.surf.format == ISL_FORMAT_ASTC_LDR_2D_5X5_FLT16 ||
++       params->src.surf.format == ISL_FORMAT_ASTC_HDR_2D_5X5_FLT16);
++}
++
++bool
++blorp_params_src_has_aux(const struct blorp_params *params)
++{
++   return params->src.enabled &&
++      params->src.aux_usage != ISL_AUX_USAGE_NONE;
++}
+diff --git a/src/intel/blorp/blorp.h b/src/intel/blorp/blorp.h
+index 4626f2f..fe602c6 100644
+--- a/src/intel/blorp/blorp.h
++++ b/src/intel/blorp/blorp.h
+@@ -223,6 +223,12 @@ blorp_hiz_op(struct blorp_batch *batch, struct blorp_surf *surf,
+              uint32_t level, uint32_t start_layer, uint32_t num_layers,
+              enum isl_aux_op op);
+ 
++bool
++blorp_params_src_has_astc5x5(const struct blorp_params *params);
++
++bool
++blorp_params_src_has_aux(const struct blorp_params *params);
++
+ #ifdef __cplusplus
+ } /* end extern "C" */
+ #endif /* __cplusplus */
+diff --git a/src/mesa/drivers/dri/i965/genX_blorp_exec.c b/src/mesa/drivers/dri/i965/genX_blorp_exec.c
+index 3406a6f..017af78 100644
+--- a/src/mesa/drivers/dri/i965/genX_blorp_exec.c
++++ b/src/mesa/drivers/dri/i965/genX_blorp_exec.c
+@@ -241,6 +241,15 @@ genX(blorp_exec)(struct blorp_batch *batch,
+    struct gl_context *ctx = &brw->ctx;
+    bool check_aperture_failed_once = false;
+ 
++   if (gen9_astc5x5_wa_required(brw)) {
++      if (blorp_params_src_has_astc5x5(params)) {
++         assert(!blorp_params_src_has_aux(params));
++         gen9_set_astc5x5_wa_mode(brw, BRW_ASTC5x5_WA_MODE_HAS_ASTC5x5);
++      } else if (blorp_params_src_has_aux(params)) {
++         gen9_set_astc5x5_wa_mode(brw, BRW_ASTC5x5_WA_MODE_HAS_AUX);
++      }
++   }
++
+    /* Flush the sampler and render caches.  We definitely need to flush the
+     * sampler cache so that we get updated contents from the render cache for
+     * the glBlitFramebuffer() source.  Also, we are sometimes warned in the
+-- 
+2.7.4
+

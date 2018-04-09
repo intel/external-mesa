@@ -1,0 +1,73 @@
+From 708ea20c106d879c82b31c0e9b60b691aa5d01af Mon Sep 17 00:00:00 2001
+From: Rafael Antognolli <rafael.antognolli@intel.com>
+Date: Thu, 15 Mar 2018 15:22:20 -0700
+Subject: [PATCH 18/27] FROMLIST: intel/genxml: Add register for object
+ preemption.
+
+Signed-off-by: Rafael Antognolli <rafael.antognolli@intel.com>
+---
+ src/intel/genxml/gen10.xml | 8 ++++++++
+ src/intel/genxml/gen11.xml | 8 ++++++++
+ src/intel/genxml/gen9.xml  | 8 ++++++++
+ 3 files changed, 24 insertions(+)
+
+diff --git a/src/intel/genxml/gen10.xml b/src/intel/genxml/gen10.xml
+index 60238ae..666e84b 100644
+--- a/src/intel/genxml/gen10.xml
++++ b/src/intel/genxml/gen10.xml
+@@ -3553,6 +3553,14 @@
+     <field name="All Allocation" start="25" end="31" type="uint"/>
+   </register>
+ 
++  <register name="CS_CHICKEN1" length="1" num="0x2580">
++    <field name="Replay Mode" start="0" end="0" type="uint">
++      <value name="Mid-cmdbuffer Preemption" value="0"/>
++      <value name="Object Level Preemption" value="1"/>
++    </field>
++    <field name="Replay Mode Mask" start="16" end="16" type="bool"/>
++  </register>
++
+   <register name="SO_WRITE_OFFSET0" length="1" num="0x5280">
+     <field name="Write Offset" start="2" end="31" type="offset"/>
+   </register>
+diff --git a/src/intel/genxml/gen11.xml b/src/intel/genxml/gen11.xml
+index 893c5b2..cb4c02b 100644
+--- a/src/intel/genxml/gen11.xml
++++ b/src/intel/genxml/gen11.xml
+@@ -3551,6 +3551,14 @@
+     <field name="All Allocation" start="25" end="31" type="uint"/>
+   </register>
+ 
++  <register name="CS_CHICKEN1" length="1" num="0x2580">
++    <field name="Replay Mode" start="0" end="0" type="uint">
++      <value name="Mid-cmdbuffer Preemption" value="0"/>
++      <value name="Object Level Preemption" value="1"/>
++    </field>
++    <field name="Replay Mode Mask" start="16" end="16" type="bool"/>
++  </register>
++
+   <register name="SO_WRITE_OFFSET0" length="1" num="0x5280">
+     <field name="Write Offset" start="2" end="31" type="offset"/>
+   </register>
+diff --git a/src/intel/genxml/gen9.xml b/src/intel/genxml/gen9.xml
+index 7d3c74d..4e78b8c 100644
+--- a/src/intel/genxml/gen9.xml
++++ b/src/intel/genxml/gen9.xml
+@@ -3491,6 +3491,14 @@
+     <field name="All Allocation" start="25" end="31" type="uint"/>
+   </register>
+ 
++  <register name="CS_CHICKEN1" length="1" num="0x2580">
++    <field name="Replay Mode" start="0" end="0" type="uint">
++      <value name="Mid-cmdbuffer Preemption" value="0"/>
++      <value name="Object Level Preemption" value="1"/>
++    </field>
++    <field name="Replay Mode Mask" start="16" end="16" type="bool"/>
++  </register>
++
+   <register name="SO_WRITE_OFFSET0" length="1" num="0x5280">
+     <field name="Write Offset" start="2" end="31" type="offset"/>
+   </register>
+-- 
+2.7.4
+

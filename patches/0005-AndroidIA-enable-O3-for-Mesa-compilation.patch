@@ -1,0 +1,31 @@
+From ab013dee7520a0e4affa809fa9608f63af1165e2 Mon Sep 17 00:00:00 2001
+From: Yogesh Marathe <yogesh.marathe@intel.com>
+Date: Fri, 8 Dec 2017 13:02:39 -0800
+Subject: [PATCH 05/27] AndroidIA: enable O3 for Mesa compilation.
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Improves performance of graphics tests significantly.
+
+Signed-off-by: Yogesh Marathe <yogesh.marathe@intel.com>
+Acked-by: Tapani Pälli <tapani.palli@intel.com>
+---
+ Android.common.mk | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/Android.common.mk b/Android.common.mk
+index e8aed48..89dd957 100644
+--- a/Android.common.mk
++++ b/Android.common.mk
+@@ -31,6 +31,7 @@ LOCAL_C_INCLUDES += \
+ 
+ MESA_VERSION := $(shell cat $(MESA_TOP)/VERSION)
+ LOCAL_CFLAGS += \
++	-O3 \
+ 	-Wno-error \
+ 	-Wno-unused-parameter \
+ 	-Wno-pointer-arith \
+-- 
+2.7.4
+

@@ -1,0 +1,42 @@
+From 78a40d45d026e58554eebf9f720de64630c52556 Mon Sep 17 00:00:00 2001
+From: Kevin Strasser <kevin.strasser@intel.com>
+Date: Wed, 22 Mar 2017 03:38:07 -0700
+Subject: [PATCH 04/27] AndroidIA: REVERTME: Enable sampling for imported
+ dma_buf images
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The HWC Vulkan backend needs to be able to sample from source images, so for
+now enable that for all users of vkCreateDmaBufImageINTEL. We can revert
+this patch once we land support for VK_MESAX_external_image_dma_buf, which
+allows the application to fill the 'usage' field.
+
+Jira: IAHWC-40
+Test: Enable Vulkan backend of IA-Hardware-Composer and try kmscube.
+      The cube should be visible and animated, but at this time there is
+      severe flickering.
+
+Signed-off-by: Kevin Strasser <kevin.strasser@intel.com>
+Acked-by: Tapani Pälli <tapani.palli@intel.com>
+---
+ src/intel/vulkan/anv_intel.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/intel/vulkan/anv_intel.c b/src/intel/vulkan/anv_intel.c
+index 976c833..38fe1b0 100644
+--- a/src/intel/vulkan/anv_intel.c
++++ b/src/intel/vulkan/anv_intel.c
+@@ -64,7 +64,8 @@ VkResult anv_CreateDmaBufImageINTEL(
+          .samples = 1,
+          /* FIXME: Need a way to use X tiling to allow scanout */
+          .tiling = VK_IMAGE_TILING_OPTIMAL,
+-         .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
++         .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
++                  VK_IMAGE_USAGE_SAMPLED_BIT,
+          .flags = 0,
+       }},
+       pAllocator, &image_h);
+-- 
+2.7.4
+
