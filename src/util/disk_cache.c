@@ -229,6 +229,11 @@ disk_cache_create(const char *gpu_name, const char *timestamp,
     *   $XDG_CACHE_HOME/mesa_shader_cache
     *   <pwd.pw_dir>/.cache/mesa_shader_cache
     */
+
+#ifdef ANDROID
+   setenv("MESA_GLSL_CACHE_DIR", "/data/local", 1);
+#endif
+
    path = getenv("MESA_GLSL_CACHE_DIR");
    if (path) {
       if (mkdir_if_needed(path) == -1)
