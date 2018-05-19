@@ -184,11 +184,15 @@ emit_system_values_block(nir_block *block, fs_visitor *v)
              * masks for 2 and 3) in SIMD16.
              */
             fs_reg shifted = abld.vgrf(BRW_REGISTER_TYPE_UW, 1);
-            abld.SHR(shifted,
-                     stride(byte_offset(retype(brw_vec1_grf(1, 0),
-                                               BRW_REGISTER_TYPE_UB), 28),
-                            1, 8, 0),
-                     brw_imm_v(0x76543210));
+
+            for (unsigned i = 0; i < DIV_ROUND_UP(v->dispatch_width, 16); i++) {
+               const fs_builder hbld = abld.group(MIN2(16, v->dispatch_width), i);
+               hbld.SHR(offset(shifted, hbld, i),
+                        stride(retype(brw_vec1_grf(1 + i, 7),
+                                      BRW_REGISTER_TYPE_UB),
+                               1, 8, 0),
+                        brw_imm_v(0x76543210));
+            }
 
             /* A set bit in the pixel mask means the channel is enabled, but
              * that is the opposite of gl_HelperInvocation so we need to invert
@@ -384,6 +388,10 @@ fs_visitor::nir_emit_if(nir_if *if_stmt)
    nir_emit_cf_list(&if_stmt->else_list);
 
    bld.emit(BRW_OPCODE_ENDIF);
+
+   if (devinfo->gen < 7)
+      limit_dispatch_width(16, "Non-uniform control flow unsupported "
+                           "in SIMD32 mode.");
 }
 
 void
@@ -394,6 +402,10 @@ fs_visitor::nir_emit_loop(nir_loop *loop)
    nir_emit_cf_list(&loop->body);
 
    bld.emit(BRW_OPCODE_WHILE);
+
+   if (devinfo->gen < 7)
+      limit_dispatch_width(16, "Non-uniform control flow unsupported "
+                           "in SIMD32 mode.");
 }
 
 void
@@ -1731,27 +1743,13 @@ emit_pixel_interpolater_send(const fs_builder &bld,
 {
    struct brw_wm_prog_data *wm_prog_data =
       brw_wm_prog_data(bld.shader->stage_prog_data);
-   fs_inst *inst;
-   fs_reg payload;
-   int mlen;
 
-   if (src.file == BAD_FILE) {
-      /* Dummy payload */
-      payload = bld.vgrf(BRW_REGISTER_TYPE_F, 1);
-      mlen = 1;
-   } else {
-      payload = src;
-      mlen = 2 * bld.dispatch_width() / 8;
-   }
-
-   inst = bld.emit(opcode, dst, payload, desc);
-   inst->mlen = mlen;
+   fs_inst *inst = bld.emit(opcode, dst, src, desc);
    /* 2 floats per slot returned */
    inst->size_written = 2 * dst.component_size(inst->exec_size);
    inst->pi_noperspective = interpolation == INTERP_MODE_NOPERSPECTIVE;
 
    wm_prog_data->pulls_bary = true;
-
    return inst;
 }
 
@@ -3318,21 +3316,23 @@ fs_visitor::nir_emit_fs_intrinsic(const fs_builder &bld,
       if (devinfo->gen >= 6) {
          emit_discard_jump();
       }
+
+      limit_dispatch_width(16, "Fragment discard not implemented in SIMD32 mode.");
       break;
    }
 
    case nir_intrinsic_load_input: {
       /* load_input is only used for flat inputs */
       unsigned base = nir_intrinsic_base(instr);
-      unsigned component = nir_intrinsic_component(instr);
+      unsigned comp = nir_intrinsic_component(instr);
       unsigned num_components = instr->num_components;
       enum brw_reg_type type = dest.type;
 
       /* Special case fields in the VUE header */
       if (base == VARYING_SLOT_LAYER)
-         component = 1;
+         comp = 1;
       else if (base == VARYING_SLOT_VIEWPORT)
-         component = 2;
+         comp = 2;
 
       if (nir_dest_bit_size(instr->dest) == 64) {
          /* const_index is in 32-bit type size units that could not be aligned
@@ -3344,10 +3344,8 @@ fs_visitor::nir_emit_fs_intrinsic(const fs_builder &bld,
       }
 
       for (unsigned int i = 0; i < num_components; i++) {
-         struct brw_reg interp = interp_reg(base, component + i);
-         interp = suboffset(interp, 3);
-         bld.emit(FS_OPCODE_CINTERP, offset(retype(dest, type), bld, i),
-                  retype(fs_reg(interp), type));
+         bld.MOV(offset(retype(dest, type), bld, i),
+                 retype(component(interp_reg(base, comp + i), 3), type));
       }
 
       if (nir_dest_bit_size(instr->dest) == 64) {
@@ -3421,7 +3419,7 @@ fs_visitor::nir_emit_fs_intrinsic(const fs_builder &bld,
                                             FS_OPCODE_INTERPOLATE_AT_SAMPLE,
                                             dest,
                                             fs_reg(), /* src */
-                                            msg_data,
+                                            component(msg_data, 0),
                                             interpolation);
             set_predicate(BRW_PREDICATE_NORMAL, inst);
 
@@ -3520,8 +3518,8 @@ fs_visitor::nir_emit_fs_intrinsic(const fs_builder &bld,
 
       for (unsigned int i = 0; i < instr->num_components; i++) {
          fs_reg interp =
-            fs_reg(interp_reg(nir_intrinsic_base(instr),
-                              nir_intrinsic_component(instr) + i));
+            component(interp_reg(nir_intrinsic_base(instr),
+                                 nir_intrinsic_component(instr) + i), 0);
          interp.type = BRW_REGISTER_TYPE_F;
          dest.type = BRW_REGISTER_TYPE_F;
 

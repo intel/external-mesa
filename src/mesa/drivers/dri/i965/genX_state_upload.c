@@ -1898,6 +1898,7 @@ genX(upload_wm)(struct brw_context *brw)
       wm.MaximumNumberofThreads = devinfo->max_wm_threads - 1;
       wm._8PixelDispatchEnable = wm_prog_data->dispatch_8;
       wm._16PixelDispatchEnable = wm_prog_data->dispatch_16;
+      wm._32PixelDispatchEnable = wm_prog_data->dispatch_32;
       wm.DispatchGRFStartRegisterForConstantSetupData0 =
          wm_prog_data->base.dispatch_grf_start_reg;
       if (GEN_GEN == 6 ||
@@ -1909,6 +1910,10 @@ genX(upload_wm)(struct brw_context *brw)
       if (GEN_GEN == 6 || wm_prog_data->prog_offset_2) {
          wm.KernelStartPointer2 =
             KSP(brw, stage_state->prog_offset + wm_prog_data->prog_offset_2);
+      }
+      if (GEN_GEN == 6 || wm_prog_data->prog_offset_1) {
+         wm.KernelStartPointer1 =
+            KSP(brw, stage_state->prog_offset + wm_prog_data->prog_offset_1);
       }
 #endif
 
@@ -1935,6 +1940,9 @@ genX(upload_wm)(struct brw_context *brw)
          wm.PositionXYOffsetSelect = POSOFFSET_SAMPLE;
       else
          wm.PositionXYOffsetSelect = POSOFFSET_NONE;
+
+      wm.DispatchGRFStartRegisterForConstantSetupData1 =
+         wm_prog_data->dispatch_grf_start_reg_1;
 
       wm.DispatchGRFStartRegisterForConstantSetupData2 =
          wm_prog_data->dispatch_grf_start_reg_2;
@@ -3937,12 +3945,41 @@ genX(upload_ps)(struct brw_context *brw)
 
       ps._8PixelDispatchEnable = prog_data->dispatch_8;
       ps._16PixelDispatchEnable = prog_data->dispatch_16;
+      ps._32PixelDispatchEnable = prog_data->dispatch_32;
+
+#if GEN_GEN >= 9
+      if (ps._32PixelDispatchEnable &&
+          brw->num_samples == 16 && !prog_data->persample_dispatch) {
+         /* From the SKL+ 3DSTATE_PS hardware docs:
+          * "When NUM_MULTISAMPLES = 16 or FORCE_SAMPLE_COUNT = 16, SIMD32
+          *  Dispatch must not be enabled for PER_PIXEL dispatch mode."
+          *
+          * But disabling 32-wide dispatch at this point would cause the
+          * ordering of KSP offsets to change unless the two other dispatch
+          * modes are enabled.
+          *
+          * Currently, the Intel GEN shader compiler will not emit SIMD32
+          * if either of SIMD8 or SIMD16 is not emitted; however if we
+          * ever get to a situation where that assumption no longer holds
+          * here is the big red WARNING of doom.
+          *
+          * XXX - Use a saner representation of brw_wm_prog_data so we can do
+          *       the right thing if the assertion below doesn't hold.
+          */
+         assert(prog_data->dispatch_8 && prog_data->dispatch_16);
+         ps._32PixelDispatchEnable = false;
+      }
+#endif
       ps.DispatchGRFStartRegisterForConstantSetupData0 =
          prog_data->base.dispatch_grf_start_reg;
+      ps.DispatchGRFStartRegisterForConstantSetupData1 =
+         prog_data->dispatch_grf_start_reg_1;
       ps.DispatchGRFStartRegisterForConstantSetupData2 =
          prog_data->dispatch_grf_start_reg_2;
 
       ps.KernelStartPointer0 = stage_state->prog_offset;
+      ps.KernelStartPointer1 = stage_state->prog_offset +
+         prog_data->prog_offset_1;
       ps.KernelStartPointer2 = stage_state->prog_offset +
          prog_data->prog_offset_2;
 

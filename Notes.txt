@@ -1,0 +1,42 @@
+Patch 0010 i965/fs: Fix Gen4-5 FB write AA data payload munging for non-EOT writes.
+   Not clear if it needed to be applied
+
+Patch 0011 i965/eu: Emit JMPI with exec_size 1 already applied in Mesa-master
+   Already applied in Mesa master
+
+Patch 0018 i965/fs: Rework FB write header setup for SIMD32 and better scheduling.
+   Needed to change allocate_registers(false) to allocate_registers(16, false)
+   in fs_generator::emit_repclear_shader(). Leaving this in made the shader
+   compiler crash from compiling blorp shaders. For now remove this.
+
+Patch 0032 965/fs: Implement 32-wide FS payload setup on Gen6+.
+   Needed to change nir->info->XXX to nir->info.XXX in fs_vistor::setup_fs_payload_gen6().
+
+Patch 44 HACK: i965/fs: Enable SIMD32 codegen for BLORP fragment shaders.
+   Needed to change shader->info->XXX to shader->info.XXX
+
+
+Patch 0042 State Setup for SIMD32 fragmetn shaders
+    This patch had to be completely rewritten since the state uploads
+    were all moved to a common file genX_state_upload.c.
+
+    Additional pain is required because the meaning of the kernel
+    fields is NOT what one would expect when 32-wide enabled is
+    activated.
+
+   /* GEN is amusing at times, depending on what dispatches are enabled,
+    * which kernel is used for different dispatch modes changes.
+    *
+    * | 8-enabled | 16-enabled | 32-enabled | 8-shader | 16-shader | 32-shader |
+    * |  TRUE     |  FALSE     |  FALSE     | Kerenl0  |           |           |
+    * |  TRUE     |  TRUE      |  FALSE     | Kerenl0  | Kerenl2   |           |
+    * |  TRUE     |  TRUE      |  TRUE      | Kernel0  | Kerenl2   | Kernel1   |
+    * |  FALSE    |  TRUE      |  FALSE     |          | Kernal0   |           |
+    * |  FALSE    |  FALSE     |  TRUE      |          |           | Kernel0   |
+    * |  FALSE    |  TRUE      |  TRUE      |          | Kernel2   | Kernel1   |
+    *
+    * Atleast from the table, we can get a simple set or rules:
+    *  - 8-wide, if it is enabled, it is alway at Kernel0
+    *  - if N-wide is the only one enabled, then it is at Kernel0
+    *  - if there are atleast 2-enables, then 16-wide is at 2 and 32-wide is at 1.
+    */

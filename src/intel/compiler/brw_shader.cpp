@@ -378,8 +378,6 @@ brw_instruction_name(const struct gen_device_info *devinfo, enum opcode op)
    case FS_OPCODE_DDY_FINE:
       return "ddy_fine";
 
-   case FS_OPCODE_CINTERP:
-      return "cinterp";
    case FS_OPCODE_LINTERP:
       return "linterp";
 
@@ -954,7 +952,6 @@ backend_instruction::can_do_cmod() const
    case BRW_OPCODE_SHR:
    case BRW_OPCODE_SUBB:
    case BRW_OPCODE_XOR:
-   case FS_OPCODE_CINTERP:
    case FS_OPCODE_LINTERP:
       return true;
    default:
@@ -981,8 +978,8 @@ backend_instruction::writes_accumulator_implicitly(const struct gen_device_info 
    return writes_accumulator ||
           (devinfo->gen < 6 &&
            ((opcode >= BRW_OPCODE_ADD && opcode < BRW_OPCODE_NOP) ||
-            (opcode >= FS_OPCODE_DDX_COARSE && opcode <= FS_OPCODE_LINTERP &&
-             opcode != FS_OPCODE_CINTERP)));
+            (opcode >= FS_OPCODE_DDX_COARSE && opcode <= FS_OPCODE_LINTERP))) ||
+          (devinfo->gen < 7 && opcode == FS_OPCODE_LINTERP);
 }
 
 bool
@@ -1276,7 +1273,7 @@ brw_compile_tes(const struct brw_compiler *compiler,
       prog_data->base.base.dispatch_grf_start_reg = v.payload.num_regs;
       prog_data->base.dispatch_mode = DISPATCH_MODE_SIMD8;
 
-      fs_generator g(compiler, log_data, mem_ctx, (void *) key,
+      fs_generator g(compiler, log_data, mem_ctx,
                      &prog_data->base.base, v.promoted_constants, false,
                      MESA_SHADER_TESS_EVAL);
       if (unlikely(INTEL_DEBUG & DEBUG_TES)) {

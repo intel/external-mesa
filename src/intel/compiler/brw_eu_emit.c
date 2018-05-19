@@ -2257,17 +2257,17 @@ void brw_oword_block_read(struct brw_codegen *p,
    brw_pop_insn_state(p);
 }
 
-
-void brw_fb_WRITE(struct brw_codegen *p,
-                  struct brw_reg payload,
-                  struct brw_reg implied_header,
-                  unsigned msg_control,
-                  unsigned binding_table_index,
-                  unsigned msg_length,
-                  unsigned response_length,
-                  bool eot,
-                  bool last_render_target,
-                  bool header_present)
+brw_inst *
+brw_fb_WRITE(struct brw_codegen *p,
+             struct brw_reg payload,
+             struct brw_reg implied_header,
+             unsigned msg_control,
+             unsigned binding_table_index,
+             unsigned msg_length,
+             unsigned response_length,
+             bool eot,
+             bool last_render_target,
+             bool header_present)
 {
    const struct gen_device_info *devinfo = p->devinfo;
    const unsigned target_cache =
@@ -2316,6 +2316,8 @@ void brw_fb_WRITE(struct brw_codegen *p,
 			    response_length,
 			    eot,
 			    0 /* send_commit_msg */);
+
+   return insn;
 }
 
 brw_inst *
@@ -3346,6 +3348,7 @@ brw_pixel_interpolator_query(struct brw_codegen *p,
    const struct gen_device_info *devinfo = p->devinfo;
    struct brw_inst *insn;
    const uint16_t exec_size = brw_inst_exec_size(devinfo, p->current);
+   const uint16_t qtr_ctrl = brw_inst_qtr_control(devinfo, p->current);
 
    /* brw_send_indirect_message will automatically use a direct send message
     * if data is actually immediate.
@@ -3359,7 +3362,7 @@ brw_pixel_interpolator_query(struct brw_codegen *p,
    brw_inst_set_rlen(devinfo, insn, response_length);
 
    brw_inst_set_pi_simd_mode(devinfo, insn, exec_size == BRW_EXECUTE_16);
-   brw_inst_set_pi_slot_group(devinfo, insn, 0); /* zero unless 32/64px dispatch */
+   brw_inst_set_pi_slot_group(devinfo, insn, qtr_ctrl / 2);
    brw_inst_set_pi_nopersp(devinfo, insn, noperspective);
    brw_inst_set_pi_message_type(devinfo, insn, mode);
 }

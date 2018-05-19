@@ -418,6 +418,12 @@ fs_inst::can_change_types() const
             !src[1].abs && !src[1].negate));
 }
 
+bool
+fs_inst::has_side_effects() const
+{
+   return this->eot || this->last_rt || backend_instruction::has_side_effects();
+}
+
 void
 fs_reg::init()
 {
@@ -818,6 +824,8 @@ fs_inst::components_read(unsigned i) const
       else
          return 1;
    }
+   case FS_OPCODE_INTERPOLATE_AT_PER_SLOT_OFFSET:
+      return (i == 0 ? 2 : 1);
 
    default:
       return 1;
@@ -829,6 +837,15 @@ fs_inst::size_read(int arg) const
 {
    switch (opcode) {
    case FS_OPCODE_FB_WRITE:
+   case FS_OPCODE_REP_FB_WRITE:
+      if (arg == 0) {
+         if (base_mrf >= 0)
+            return (src[0].file == BAD_FILE ? 0 : 2) * REG_SIZE;
+         else
+            return mlen * REG_SIZE;
+      }
+      break;
+
    case FS_OPCODE_FB_READ:
    case SHADER_OPCODE_URB_WRITE_SIMD8:
    case SHADER_OPCODE_URB_WRITE_SIMD8_PER_SLOT:
@@ -844,11 +861,15 @@ fs_inst::size_read(int arg) const
    case SHADER_OPCODE_TYPED_SURFACE_WRITE:
    case FS_OPCODE_INTERPOLATE_AT_SAMPLE:
    case FS_OPCODE_INTERPOLATE_AT_SHARED_OFFSET:
-   case FS_OPCODE_INTERPOLATE_AT_PER_SLOT_OFFSET:
    case SHADER_OPCODE_BYTE_SCATTERED_WRITE:
    case SHADER_OPCODE_BYTE_SCATTERED_READ:
       if (arg == 0)
          return mlen * REG_SIZE;
+      break;
+
+   case FS_OPCODE_SET_SAMPLE_ID:
+      if (arg == 1)
+         return 1;
       break;
 
    case FS_OPCODE_UNIFORM_PULL_CONSTANT_LOAD_GEN7:
@@ -961,6 +982,7 @@ fs_inst::flags_written() const
                             opcode != BRW_OPCODE_IF &&
                             opcode != BRW_OPCODE_WHILE)) ||
        opcode == FS_OPCODE_MOV_DISPATCH_TO_FLAGS ||
+       opcode == FS_OPCODE_FB_WRITE ||
        opcode == SHADER_OPCODE_FIND_LIVE_CHANNEL) {
       return flag_mask(this);
    } else {
@@ -1010,7 +1032,8 @@ fs_visitor::implied_mrf_writes(fs_inst *inst) const
    case SHADER_OPCODE_SAMPLEINFO:
       return 1;
    case FS_OPCODE_FB_WRITE:
-      return 2;
+   case FS_OPCODE_REP_FB_WRITE:
+      return inst->src[0].file == BAD_FILE ? 0 : 2;
    case FS_OPCODE_UNIFORM_PULL_CONSTANT_LOAD:
    case SHADER_OPCODE_GEN4_SCRATCH_READ:
       return 1;
@@ -1076,11 +1099,11 @@ fs_visitor::emit_fragcoord_interpolation(fs_reg wpos)
 
    /* gl_FragCoord.z */
    if (devinfo->gen >= 6) {
-      bld.MOV(wpos, fs_reg(brw_vec8_grf(payload.source_depth_reg, 0)));
+      bld.MOV(wpos, fetch_payload_reg(bld, payload.source_depth_reg));
    } else {
       bld.emit(FS_OPCODE_LINTERP, wpos,
-           this->delta_xy[BRW_BARYCENTRIC_PERSPECTIVE_PIXEL],
-           interp_reg(VARYING_SLOT_POS, 2));
+               this->delta_xy[BRW_BARYCENTRIC_PERSPECTIVE_PIXEL],
+               component(interp_reg(VARYING_SLOT_POS, 2), 0));
    }
    wpos = offset(wpos, bld, 1);
 
@@ -1214,29 +1237,16 @@ fs_visitor::emit_samplepos_setup()
     * The X, Y sample positions come in as bytes in  thread payload. So, read
     * the positions using vstride=16, width=8, hstride=2.
     */
-   struct brw_reg sample_pos_reg =
-      stride(retype(brw_vec1_grf(payload.sample_pos_reg, 0),
-                    BRW_REGISTER_TYPE_B), 16, 8, 2);
+   const fs_reg sample_pos_reg =
+      fetch_payload_reg(abld, payload.sample_pos_reg, BRW_REGISTER_TYPE_W);
 
-   if (dispatch_width == 8) {
-      abld.MOV(int_sample_x, fs_reg(sample_pos_reg));
-   } else {
-      abld.half(0).MOV(half(int_sample_x, 0), fs_reg(sample_pos_reg));
-      abld.half(1).MOV(half(int_sample_x, 1),
-                       fs_reg(suboffset(sample_pos_reg, 16)));
-   }
    /* Compute gl_SamplePosition.x */
+   abld.MOV(int_sample_x, subscript(sample_pos_reg, BRW_REGISTER_TYPE_B, 0));
    compute_sample_position(pos, int_sample_x);
-   pos = offset(pos, abld, 1);
-   if (dispatch_width == 8) {
-      abld.MOV(int_sample_y, fs_reg(suboffset(sample_pos_reg, 1)));
-   } else {
-      abld.half(0).MOV(half(int_sample_y, 0),
-                       fs_reg(suboffset(sample_pos_reg, 1)));
-      abld.half(1).MOV(half(int_sample_y, 1),
-                       fs_reg(suboffset(sample_pos_reg, 17)));
-   }
+
    /* Compute gl_SamplePosition.y */
+   pos = offset(pos, abld, 1);
+   abld.MOV(int_sample_y, subscript(sample_pos_reg, BRW_REGISTER_TYPE_B, 1));
    compute_sample_position(pos, int_sample_y);
    return reg;
 }
@@ -1286,16 +1296,20 @@ fs_visitor::emit_sampleid_setup()
        * TODO: These payload bits exist on Gen7 too, but they appear to always
        *       be zero, so this code fails to work.  We should find out why.
        */
-      fs_reg tmp(VGRF, alloc.allocate(1), BRW_REGISTER_TYPE_UW);
+      const fs_reg tmp = abld.vgrf(BRW_REGISTER_TYPE_W);
 
-      abld.SHR(tmp, fs_reg(stride(retype(brw_vec1_grf(1, 0),
-                                         BRW_REGISTER_TYPE_UB), 1, 8, 0)),
-                    brw_imm_v(0x44440000));
+      for (unsigned i = 0; i < DIV_ROUND_UP(dispatch_width, 16); i++) {
+         const fs_builder hbld = abld.group(MIN2(16, dispatch_width), i);
+         hbld.SHR(offset(tmp, hbld, i),
+                  stride(retype(brw_vec1_grf(1 + i, 0), BRW_REGISTER_TYPE_B),
+                         1, 8, 0),
+                  brw_imm_v(0x44440000));
+      }
+
       abld.AND(*reg, tmp, brw_imm_w(0xf));
    } else {
-      const fs_reg t1 = component(fs_reg(VGRF, alloc.allocate(1),
-                                         BRW_REGISTER_TYPE_UD), 0);
-      const fs_reg t2(VGRF, alloc.allocate(1), BRW_REGISTER_TYPE_UW);
+      const fs_reg t1 = component(abld.vgrf(BRW_REGISTER_TYPE_D), 0);
+      const fs_reg t2 = abld.vgrf(BRW_REGISTER_TYPE_W);
 
       /* The PS will be run in MSDISPMODE_PERSAMPLE. For example with
        * 8x multisampling, subspan 0 will represent sample N (where N
@@ -1325,8 +1339,8 @@ fs_visitor::emit_sampleid_setup()
                brw_imm_ud(0xc0));
       abld.exec_all().group(1, 0).SHR(t1, t1, brw_imm_d(5));
 
-      /* This works for both SIMD8 and SIMD16 */
-      abld.exec_all().group(4, 0).MOV(t2, brw_imm_v(0x3210));
+      /* This works for SIMD8-SIMD32 */
+      abld.exec_all().group(8, 0).MOV(t2, brw_imm_v(0x32103210));
 
       /* This special instruction takes care of setting vstride=1,
        * width=4, hstride=0 of t2 during an ADD instruction.
@@ -1346,8 +1360,8 @@ fs_visitor::emit_samplemaskin_setup()
 
    fs_reg *reg = new(this->mem_ctx) fs_reg(vgrf(glsl_type::int_type));
 
-   fs_reg coverage_mask(retype(brw_vec8_grf(payload.sample_mask_in_reg, 0),
-                               BRW_REGISTER_TYPE_D));
+   fs_reg coverage_mask =
+      fetch_payload_reg(bld, payload.sample_mask_in_reg, BRW_REGISTER_TYPE_D);
 
    if (wm_prog_data->persample_dispatch) {
       /* gl_SampleMaskIn[] comes from two sources: the input coverage mask,
@@ -1609,14 +1623,21 @@ fs_visitor::assign_urb_setup()
     * setup regs, now that the location of the constants has been chosen.
     */
    foreach_block_and_inst(block, fs_inst, inst, cfg) {
-      if (inst->opcode == FS_OPCODE_LINTERP) {
-	 assert(inst->src[1].file == FIXED_GRF);
-         inst->src[1].nr += urb_start;
-      }
-
-      if (inst->opcode == FS_OPCODE_CINTERP) {
-	 assert(inst->src[0].file == FIXED_GRF);
-         inst->src[0].nr += urb_start;
+      for (int i = 0; i < inst->sources; i++) {
+         if (inst->src[i].file == ATTR) {
+            const unsigned nr =
+               urb_start + inst->src[i].nr + inst->src[i].offset / REG_SIZE;
+            const unsigned width = inst->src[i].stride == 0 ?
+                                   1 : MIN2(inst->exec_size, 8);
+            struct brw_reg reg = stride(
+               byte_offset(retype(brw_vec8_grf(nr, 0), inst->src[i].type),
+                           inst->src[i].offset % REG_SIZE),
+               width * inst->src[i].stride,
+               width, inst->src[i].stride);
+            reg.abs = inst->src[i].abs;
+            reg.negate = inst->src[i].negate;
+            inst->src[i] = reg;
+         }
       }
    }
 
@@ -2654,7 +2675,7 @@ fs_visitor::opt_sampler_eot()
 {
    brw_wm_prog_key *key = (brw_wm_prog_key*) this->key;
 
-   if (stage != MESA_SHADER_FRAGMENT)
+   if (stage != MESA_SHADER_FRAGMENT || dispatch_width > 16)
       return false;
 
    if (devinfo->gen != 9 && !devinfo->is_cherryview)
@@ -3188,6 +3209,85 @@ fs_visitor::eliminate_find_live_channel()
    return progress;
 }
 
+static fs_reg
+setup_fb_write_header(const fs_builder &bld,
+                      const struct brw_wm_prog_data *prog_data,
+                      const brw_wm_prog_key *key,
+                      const fs_visitor::thread_payload &payload,
+                      unsigned target)
+{
+   const gen_device_info *devinfo = bld.shader->devinfo;
+   const fs_builder &ubld = bld.exec_all().group(8, 0);
+   const fs_reg header = ubld.vgrf(BRW_REGISTER_TYPE_UD, 2);
+
+   if (devinfo->gen >= 6) {
+      if (bld.group() / 16 == 1) {
+         const fs_reg header_sources[] = {
+            retype(brw_vec8_grf(0, 0), BRW_REGISTER_TYPE_UD),
+            retype(brw_vec8_grf(2, 0), BRW_REGISTER_TYPE_UD)
+         };
+         ubld.LOAD_PAYLOAD(header, header_sources,
+                           ARRAY_SIZE(header_sources), 0);
+      } else {
+         ubld.group(16, 0).MOV(header, retype(brw_vec8_grf(0, 0),
+                                              BRW_REGISTER_TYPE_UD));
+      }
+
+      /* Set "Source0 Alpha Present to RenderTarget" bit in message
+       * header.
+       */
+      if (target > 0 && key->replicate_alpha)
+         ubld.group(1, 0).OR(header, retype(brw_vec1_grf(0, 0),
+                                            BRW_REGISTER_TYPE_UD),
+                             brw_imm_ud(1 << 11));
+
+      /* Set the render target index for choosing BLEND_STATE. */
+      if (target > 0)
+         ubld.group(1, 0).MOV(horiz_offset(header, 2),
+                              brw_imm_ud(target));
+
+      /* Set computes stencil to render target */
+      if (prog_data->computed_stencil)
+         ubld.group(1, 0).OR(header,
+                             retype(brw_vec1_grf(0, 0),
+                                    BRW_REGISTER_TYPE_UD),
+                             brw_imm_ud(1 << 14));
+
+
+   } else {
+      assert(bld.group() < 16);
+      const fs_reg header_sources[] = {
+         retype(brw_vec8_grf(0, 0), BRW_REGISTER_TYPE_UD),
+         retype(brw_vec8_grf(1 /* XXX - payload.subspan_coord_reg[bld.group() / 16] */, 0),
+                BRW_REGISTER_TYPE_UD)
+      };
+      ubld.LOAD_PAYLOAD(header, header_sources, ARRAY_SIZE(header_sources), 0);
+
+      if (bld.group() / 16) {
+         assert(bld.group() < 16);
+         ubld.group(1, 0).MOV(header,
+                              retype(brw_vec1_grf(1 /* XXX - payload.subspan_coord_reg[1] */, 0),
+                                     BRW_REGISTER_TYPE_UD));
+         ubld.group(2, 0).MOV(horiz_offset(header, 14),
+                              retype(brw_vec2_grf(1, 6),
+                                     BRW_REGISTER_TYPE_UD));
+      }
+   }
+
+   /* On HSW, the GPU will use the predicate on SENDC, unless the header is
+    * present.
+    */
+   if (prog_data->uses_kill) {
+      assert(bld.group() < 16);
+      const fs_reg pixel_mask =
+         retype(horiz_offset(header, devinfo->gen >= 6 ? 15 : 0),
+                BRW_REGISTER_TYPE_UW);
+      ubld.group(1, 0).MOV(pixel_mask, brw_flag_reg(0, 1));
+   }
+
+   return header;
+}
+
 /**
  * Once we've generated code, try to convert normal FS_OPCODE_FB_WRITE
  * instructions to FS_OPCODE_REP_FB_WRITE.
@@ -3225,6 +3325,12 @@ fs_visitor::emit_repclear_shader()
    } else {
       assume(key->nr_color_regions > 0);
       for (int i = 0; i < key->nr_color_regions; ++i) {
+         const fs_reg header = setup_fb_write_header(
+            bld, brw_wm_prog_data(prog_data), key, payload, i);
+         bld.exec_all().group(16, 0)
+            .MOV(retype(brw_message_reg(base_mrf), BRW_REGISTER_TYPE_UD),
+                 header);
+
          write = bld.emit(FS_OPCODE_REP_FB_WRITE);
          write->saturate = key->clamp_fragment_color;
          write->base_mrf = base_mrf;
@@ -3234,11 +3340,17 @@ fs_visitor::emit_repclear_shader()
       }
    }
    write->eot = true;
+   write->last_rt = true;
 
    calculate_cfg();
 
    assign_constant_locations();
    assign_curb_setup();
+   /* WARNING: the original SIMD32 series has this line added, in patch
+    * "i965/fs: Rework FB write header setup for SIMD32 and better scheduling."
+    * but giving this line makes bad things happen later.
+    */
+   // allocate_registers(16, false);
 
    /* Now that we have the uniform assigned, go ahead and force it to a vec4. */
    if (uniforms > 0) {
@@ -3944,6 +4056,7 @@ lower_fb_write_logical_send(const fs_builder &bld, fs_inst *inst,
    /* We can potentially have a message length of up to 15, so we have to set
     * base_mrf to either 0 or 1 in order to fit in m0..m15.
     */
+   fs_reg header;
    fs_reg sources[15];
    int header_size = 2, payload_header_size;
    unsigned length = 0;
@@ -3963,16 +4076,25 @@ lower_fb_write_logical_send(const fs_builder &bld, fs_inst *inst,
    }
 
    if (header_size != 0) {
-      assert(header_size == 2);
-      /* Allocate 2 registers for a header */
-      length += 2;
+      header = setup_fb_write_header(bld, prog_data, key, payload,
+                                     inst->target);
+
+      if (devinfo->gen >= 6) {
+         sources[length++] = header;
+         sources[length++] = byte_offset(header, REG_SIZE);
+      } else {
+         /* Allocate 2 registers for the header */
+         length += 2;
+      }
    }
 
-   if (payload.aa_dest_stencil_reg) {
+   if (payload.aa_dest_stencil_reg[0] /* XXX - payload.aa_dest_stencil_reg[0]*/) {
+      assert(inst->group < 16);
       sources[length] = fs_reg(VGRF, bld.shader->alloc.allocate(1));
       bld.group(8, 0).exec_all().annotate("FB write stencil/AA alpha")
          .MOV(sources[length],
-              fs_reg(brw_vec8_grf(payload.aa_dest_stencil_reg, 0)));
+              fs_reg(brw_vec8_grf(payload.aa_dest_stencil_reg[0]
+                                  /* payload.aa_dest_stencil_reg[inst->group / 16] */, 0)));
       length++;
    }
 
@@ -3992,7 +4114,7 @@ lower_fb_write_logical_send(const fs_builder &bld, fs_inst *inst,
 
       bld.exec_all().annotate("FB write oMask")
          .MOV(horiz_offset(retype(sources[length], BRW_REGISTER_TYPE_UW),
-                           inst->group),
+                           inst->group % 16),
               sample_mask);
       length++;
    }
@@ -4037,7 +4159,7 @@ lower_fb_write_logical_send(const fs_builder &bld, fs_inst *inst,
 
    if (src_stencil.file != BAD_FILE) {
       assert(devinfo->gen >= 9);
-      assert(bld.dispatch_width() != 16);
+      assert(bld.dispatch_width() == 8);
 
       /* XXX: src_stencil is only available on gen9+. dst_depth is never
        * available on gen9+. As such it's impossible to have both enabled at the
@@ -4061,7 +4183,6 @@ lower_fb_write_logical_send(const fs_builder &bld, fs_inst *inst,
       load->dst = payload;
 
       inst->src[0] = payload;
-      inst->resize_sources(1);
    } else {
       /* Send from the MRF */
       load = bld.LOAD_PAYLOAD(fs_reg(MRF, 1, BRW_REGISTER_TYPE_F),
@@ -4073,10 +4194,11 @@ lower_fb_write_logical_send(const fs_builder &bld, fs_inst *inst,
       if (devinfo->gen < 6 && bld.dispatch_width() == 16)
          load->dst.nr |= BRW_MRF_COMPR4;
 
-      inst->resize_sources(0);
+      inst->src[0] = (devinfo->gen == 6 ? fs_reg() : header);
       inst->base_mrf = 1;
    }
 
+   inst->resize_sources(1);
    inst->opcode = FS_OPCODE_FB_WRITE;
    inst->mlen = regs_written(load);
    inst->header_size = header_size;
@@ -4085,12 +4207,20 @@ lower_fb_write_logical_send(const fs_builder &bld, fs_inst *inst,
 static void
 lower_fb_read_logical_send(const fs_builder &bld, fs_inst *inst)
 {
-   const fs_builder &ubld = bld.exec_all();
+   const fs_builder &ubld = bld.exec_all().group(8, 0);
    const unsigned length = 2;
-   const fs_reg header = ubld.group(8, 0).vgrf(BRW_REGISTER_TYPE_UD, length);
+   const fs_reg header = ubld.vgrf(BRW_REGISTER_TYPE_UD, length);
 
-   ubld.group(16, 0)
-       .MOV(header, retype(brw_vec8_grf(0, 0), BRW_REGISTER_TYPE_UD));
+   if (bld.group() / 16 == 1) {
+      const fs_reg header_sources[] = {
+         retype(brw_vec8_grf(0, 0), BRW_REGISTER_TYPE_UD),
+         retype(brw_vec8_grf(2, 0), BRW_REGISTER_TYPE_UD)
+      };
+      ubld.LOAD_PAYLOAD(header, header_sources, ARRAY_SIZE(header_sources), 0);
+   } else {
+      ubld.group(16, 0).MOV(header, retype(brw_vec8_grf(0, 0),
+                                           BRW_REGISTER_TYPE_UD));
+   }
 
    inst->resize_sources(1);
    inst->src[0] = header;
@@ -4979,7 +5109,8 @@ get_fpu_lowered_simd_width(const struct gen_device_info *devinfo,
             type_sz(inst->src[i].type) == 2 && inst->src[i].stride == 1;
 
          if (inst->size_written > REG_SIZE &&
-             inst->size_read(i) != 0 && inst->size_read(i) <= REG_SIZE &&
+             inst->size_read(i) != 0 &&
+             inst->size_read(i) != inst->size_written &&
              !is_scalar_exception && !is_packed_word_exception) {
             const unsigned reg_count = DIV_ROUND_UP(inst->size_written, REG_SIZE);
             max_width = MIN2(max_width, inst->exec_size / reg_count);
@@ -5907,86 +6038,76 @@ fs_visitor::setup_fs_payload_gen6()
 {
    assert(stage == MESA_SHADER_FRAGMENT);
    struct brw_wm_prog_data *prog_data = brw_wm_prog_data(this->prog_data);
-
+   const unsigned payload_width = MIN2(16, dispatch_width);
+   assert(dispatch_width % payload_width == 0);
    assert(devinfo->gen >= 6);
 
-   /* R0-1: masks, pixel X/Y coordinates. */
-   payload.num_regs = 2;
-   /* R2: only for 32-pixel dispatch.*/
-
-   /* R3-26: barycentric interpolation coordinates.  These appear in the
-    * same order that they appear in the brw_barycentric_mode
-    * enum.  Each set of coordinates occupies 2 registers if dispatch width
-    * == 8 and 4 registers if dispatch width == 16.  Coordinates only
-    * appear if they were enabled using the "Barycentric Interpolation
-    * Mode" bits in WM_STATE.
-    */
-   for (int i = 0; i < BRW_BARYCENTRIC_MODE_COUNT; ++i) {
-      if (prog_data->barycentric_interp_modes & (1 << i)) {
-         payload.barycentric_coord_reg[i] = payload.num_regs;
-         payload.num_regs += 2;
-         if (dispatch_width == 16) {
-            payload.num_regs += 2;
-         }
-      }
-   }
-
-   /* R27: interpolated depth if uses source depth */
-   prog_data->uses_src_depth =
+   prog_data->uses_src_depth = prog_data->uses_src_w =
       (nir->info.inputs_read & (1 << VARYING_SLOT_POS)) != 0;
-   if (prog_data->uses_src_depth) {
-      payload.source_depth_reg = payload.num_regs;
-      payload.num_regs++;
-      if (dispatch_width == 16) {
-         /* R28: interpolated depth if not SIMD8. */
-         payload.num_regs++;
-      }
-   }
 
-   /* R29: interpolated W set if GEN6_WM_USES_SOURCE_W. */
-   prog_data->uses_src_w =
-      (nir->info.inputs_read & (1 << VARYING_SLOT_POS)) != 0;
-   if (prog_data->uses_src_w) {
-      payload.source_w_reg = payload.num_regs;
-      payload.num_regs++;
-      if (dispatch_width == 16) {
-         /* R30: interpolated W if not SIMD8. */
-         payload.num_regs++;
-      }
-   }
-
-   /* R31: MSAA position offsets. */
-   if (prog_data->persample_dispatch &&
-       (nir->info.system_values_read & SYSTEM_BIT_SAMPLE_POS)) {
-      /* From the Ivy Bridge PRM documentation for 3DSTATE_PS:
-       *
-       *    "MSDISPMODE_PERSAMPLE is required in order to select
-       *    POSOFFSET_SAMPLE"
-       *
-       * So we can only really get sample positions if we are doing real
-       * per-sample dispatch.  If we need gl_SamplePosition and we don't have
-       * persample dispatch, we hard-code it to 0.5.
-       */
-      prog_data->uses_pos_offset = true;
-      payload.sample_pos_reg = payload.num_regs;
-      payload.num_regs++;
-   }
-
-   /* R32: MSAA input coverage mask */
    prog_data->uses_sample_mask =
       (nir->info.system_values_read & SYSTEM_BIT_SAMPLE_MASK_IN) != 0;
-   if (prog_data->uses_sample_mask) {
-      assert(devinfo->gen >= 7);
-      payload.sample_mask_in_reg = payload.num_regs;
-      payload.num_regs++;
-      if (dispatch_width == 16) {
-         /* R33: input coverage mask if not SIMD8. */
-         payload.num_regs++;
-      }
+
+   /* From the Ivy Bridge PRM documentation for 3DSTATE_PS:
+    *
+    *    "MSDISPMODE_PERSAMPLE is required in order to select
+    *    POSOFFSET_SAMPLE"
+    *
+    * So we can only really get sample positions if we are doing real
+    * per-sample dispatch.  If we need gl_SamplePosition and we don't have
+    * persample dispatch, we hard-code it to 0.5.
+    */
+   prog_data->uses_pos_offset = prog_data->persample_dispatch &&
+      (nir->info.system_values_read & SYSTEM_BIT_SAMPLE_POS);
+
+   /* R0: PS thread payload header. */
+   payload.num_regs++;
+
+   for (unsigned j = 0; j < dispatch_width / payload_width; j++) {
+      /* R1: masks, pixel X/Y coordinates. */
+      payload.subspan_coord_reg[j] = payload.num_regs++;
    }
 
-   /* R34-: bary for 32-pixel. */
-   /* R58-59: interp W for 32-pixel. */
+   for (unsigned j = 0; j < dispatch_width / payload_width; j++) {
+      /* R3-26: barycentric interpolation coordinates.  These appear in the
+       * same order that they appear in the brw_barycentric_mode enum.  Each
+       * set of coordinates occupies 2 registers if dispatch width == 8 and 4
+       * registers if dispatch width == 16.  Coordinates only appear if they
+       * were enabled using the "Barycentric Interpolation Mode" bits in
+       * WM_STATE.
+       */
+      for (int i = 0; i < BRW_BARYCENTRIC_MODE_COUNT; ++i) {
+         if (prog_data->barycentric_interp_modes & (1 << i)) {
+            payload.barycentric_coord_reg[i][j] = payload.num_regs;
+            payload.num_regs += payload_width / 4;
+         }
+      }
+
+      /* R27-28: interpolated depth if uses source depth */
+      if (prog_data->uses_src_depth) {
+         payload.source_depth_reg[j] = payload.num_regs;
+         payload.num_regs += payload_width / 8;
+      }
+
+      /* R29-30: interpolated W set if GEN6_WM_USES_SOURCE_W. */
+      if (prog_data->uses_src_w) {
+         payload.source_w_reg[j] = payload.num_regs;
+         payload.num_regs += payload_width / 8;
+      }
+
+      /* R31: MSAA position offsets. */
+      if (prog_data->uses_pos_offset) {
+         payload.sample_pos_reg[j] = payload.num_regs;
+         payload.num_regs++;
+      }
+
+      /* R32-33: MSAA input coverage mask */
+      if (prog_data->uses_sample_mask) {
+         assert(devinfo->gen >= 7);
+         payload.sample_mask_in_reg[j] = payload.num_regs;
+         payload.num_regs += payload_width / 8;
+      }
+   }
 
    if (nir->info.outputs_written & BITFIELD64_BIT(FRAG_RESULT_DEPTH)) {
       source_depth_to_render_target = true;
@@ -6963,7 +7084,7 @@ brw_compile_fs(const struct brw_compiler *compiler, void *log_data,
                const nir_shader *src_shader,
                struct gl_program *prog,
                int shader_time_index8, int shader_time_index16,
-               bool allow_spilling,
+               int shader_time_index32, bool allow_spilling,
                bool use_rep_send, struct brw_vue_map *vue_map,
                char **error_str)
 {
@@ -7011,9 +7132,9 @@ brw_compile_fs(const struct brw_compiler *compiler, void *log_data,
    prog_data->barycentric_interp_modes =
       brw_compute_barycentric_interp_modes(compiler->devinfo, shader);
 
-   cfg_t *simd8_cfg = NULL, *simd16_cfg = NULL;
-   uint8_t simd8_grf_start = 0, simd16_grf_start = 0;
-   unsigned simd8_grf_used = 0, simd16_grf_used = 0;
+   cfg_t *simd8_cfg = NULL, *simd16_cfg = NULL, *simd32_cfg = NULL;
+   uint8_t simd8_grf_start = 0, simd16_grf_start = 0, simd32_grf_start = 0;
+   unsigned simd8_grf_used = 0, simd16_grf_used = 0, simd32_grf_used = 0;
 
    fs_visitor v8(compiler, log_data, mem_ctx, key,
                  &prog_data->base, prog, shader, 8,
@@ -7047,6 +7168,26 @@ brw_compile_fs(const struct brw_compiler *compiler, void *log_data,
       }
    }
 
+   if (v8.max_dispatch_width >= 32 && !use_rep_send &&
+       compiler->devinfo->gen >= 6 &&
+       strncmp(src_shader->info.name, "BLORP", 5) == 0 ||
+       shader->info.outputs_written <= BITFIELD64_BIT(FRAG_RESULT_DATA0)) {
+       /* Try a SIMD32 compile */
+      fs_visitor v32(compiler, log_data, mem_ctx, key,
+                     &prog_data->base, prog, shader, 32,
+                     shader_time_index32);
+      v32.import_uniforms(&v8);
+      if (!v32.run_fs(allow_spilling, false)) {
+         compiler->shader_perf_log(log_data,
+                                   "SIMD32 shader failed to compile: %s",
+                                   v32.fail_msg);
+      } else {
+         simd32_cfg = v32.cfg;
+         simd32_grf_start = v32.payload.num_regs;
+         simd32_grf_used = v32.grf_used;
+      }
+   }
+
    /* When the caller requests a repclear shader, they want SIMD16-only */
    if (use_rep_send)
       simd8_cfg = NULL;
@@ -7056,8 +7197,21 @@ brw_compile_fs(const struct brw_compiler *compiler, void *log_data,
     * Instead, we just give them exactly one shader and we pick the widest one
     * available.
     */
-   if (compiler->devinfo->gen < 5 && simd16_cfg)
-      simd8_cfg = NULL;
+   if (compiler->devinfo->gen < 5) {
+      if (simd32_cfg || simd16_cfg)
+         simd8_cfg = NULL;
+      if (simd32_cfg)
+         simd16_cfg = NULL;
+   }
+
+   /* If computed depth is enabled SNB only allows SIMD8. */
+   if (compiler->devinfo->gen == 6 &&
+       prog_data->computed_depth_mode != BRW_PSCDEPTH_OFF)
+      assert(simd16_cfg == NULL && simd32_cfg == NULL);
+
+   /* XXX - Fix gen7 sample_id setup to handle either 4x or 8x MSAA. */
+   if (compiler->devinfo->gen == 7 && prog_data->persample_dispatch)
+      simd32_cfg = NULL;
 
    if (prog_data->persample_dispatch) {
       /* Starting with SandyBridge (where we first get MSAA), the different
@@ -7065,16 +7219,11 @@ brw_compile_fs(const struct brw_compiler *compiler, void *log_data,
        * through F (SNB PRM Vol. 2 Part 1 Section 7.7.1).  On all hardware
        * generations, the only configurations supporting persample dispatch
        * are are this in which only one dispatch width is enabled.
-       *
-       * If computed depth is enabled, SNB only allows SIMD8 while IVB+
-       * allow SIMD8 or SIMD16 so we choose SIMD16 if available.
        */
-      if (compiler->devinfo->gen == 6 &&
-          prog_data->computed_depth_mode != BRW_PSCDEPTH_OFF) {
-         simd16_cfg = NULL;
-      } else if (simd16_cfg) {
+      if (simd32_cfg || simd16_cfg)
          simd8_cfg = NULL;
-      }
+      if (simd32_cfg)
+         simd16_cfg = NULL;
    }
 
    /* We have to compute the flat inputs after the visitor is finished running
@@ -7083,7 +7232,7 @@ brw_compile_fs(const struct brw_compiler *compiler, void *log_data,
     */
    brw_compute_flat_inputs(prog_data, shader);
 
-   fs_generator g(compiler, log_data, mem_ctx, (void *) key, &prog_data->base,
+   fs_generator g(compiler, log_data, mem_ctx, &prog_data->base,
                   v8.promoted_constants, v8.runtime_check_aads_emit,
                   MESA_SHADER_FRAGMENT);
 
@@ -7099,18 +7248,32 @@ brw_compile_fs(const struct brw_compiler *compiler, void *log_data,
       g.generate_code(simd8_cfg, 8);
       prog_data->base.dispatch_grf_start_reg = simd8_grf_start;
       prog_data->reg_blocks_0 = brw_register_blocks(simd8_grf_used);
+   }
 
-      if (simd16_cfg) {
-         prog_data->dispatch_16 = true;
+   if (simd16_cfg) {
+      prog_data->dispatch_16 = true;
+      if (simd8_cfg || simd32_cfg) {
          prog_data->prog_offset_2 = g.generate_code(simd16_cfg, 16);
          prog_data->dispatch_grf_start_reg_2 = simd16_grf_start;
          prog_data->reg_blocks_2 = brw_register_blocks(simd16_grf_used);
+      } else {
+         g.generate_code(simd16_cfg, 16);
+         prog_data->base.dispatch_grf_start_reg = simd16_grf_start;
+         prog_data->reg_blocks_0 = brw_register_blocks(simd16_grf_used);
       }
-   } else if (simd16_cfg) {
-      prog_data->dispatch_16 = true;
-      g.generate_code(simd16_cfg, 16);
-      prog_data->base.dispatch_grf_start_reg = simd16_grf_start;
-      prog_data->reg_blocks_0 = brw_register_blocks(simd16_grf_used);
+   }
+
+   if (simd32_cfg) {
+      prog_data->dispatch_32 = true;
+      if (simd8_cfg || simd16_cfg) {
+         prog_data->prog_offset_1 = g.generate_code(simd32_cfg, 32);
+         prog_data->dispatch_grf_start_reg_1 = simd32_grf_start;
+         prog_data->reg_blocks_1 = brw_register_blocks(simd32_grf_used);
+      } else {
+         g.generate_code(simd32_cfg, 32);
+         prog_data->base.dispatch_grf_start_reg = simd32_grf_start;
+         prog_data->reg_blocks_0 = brw_register_blocks(simd32_grf_used);
+      }
    }
 
    return g.get_assembly();
@@ -7323,7 +7486,7 @@ brw_compile_cs(const struct brw_compiler *compiler, void *log_data,
       if (error_str)
          *error_str = ralloc_strdup(mem_ctx, fail_msg);
    } else {
-      fs_generator g(compiler, log_data, mem_ctx, (void*) key, &prog_data->base,
+      fs_generator g(compiler, log_data, mem_ctx, &prog_data->base,
                      promoted_constants, false, MESA_SHADER_COMPUTE);
       if (INTEL_DEBUG & DEBUG_CS) {
          char *name = ralloc_asprintf(mem_ctx, "%s compute shader %s",

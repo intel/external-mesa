@@ -684,8 +684,11 @@ struct brw_wm_prog_data {
    GLuint num_varying_inputs;
 
    uint8_t reg_blocks_0;
+   uint8_t reg_blocks_1;
    uint8_t reg_blocks_2;
 
+   uint8_t dispatch_grf_start_reg_1;
+   uint32_t prog_offset_1;
    uint8_t dispatch_grf_start_reg_2;
    uint32_t prog_offset_2;
 
@@ -705,6 +708,7 @@ struct brw_wm_prog_data {
    bool inner_coverage;
    bool dispatch_8;
    bool dispatch_16;
+   bool dispatch_32;
    bool dual_src_blend;
    bool persample_dispatch;
    bool uses_pos_offset;
@@ -1230,6 +1234,7 @@ brw_compile_fs(const struct brw_compiler *compiler, void *log_data,
                struct gl_program *prog,
                int shader_time_index8,
                int shader_time_index16,
+               int shader_time_index32,
                bool allow_spilling,
                bool use_rep_send, struct brw_vue_map *vue_map,
                char **error_str);

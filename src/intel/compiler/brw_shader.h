@@ -170,8 +170,8 @@ struct backend_instruction {
    bool shadow_compare:1;
    bool eot:1;
 
-   /* Chooses which flag subregister (f0.0 to f1.1) is used for conditional
-    * mod and predication.
+   /* Chooses which flag subregister (f0.0-f1.1) is used for conditional mod
+    * and predication, in 16 bit units.
     */
    unsigned flag_subreg:2;
 
