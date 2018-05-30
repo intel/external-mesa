@@ -77,14 +77,23 @@ LOCAL_CFLAGS += \
 	-fvisibility=hidden \
 	-fno-math-errno \
 	-fno-trapping-math \
-	-Wno-sign-compare
+	-Wno-sign-compare \
+	-Wno-self-assign \
+	-Wno-constant-logical-operand \
+	-Wno-format \
+	-Wno-incompatible-pointer-types \
+	-Wno-enum-conversion
 
 LOCAL_CPPFLAGS += \
 	-D__STDC_CONSTANT_MACROS \
 	-D__STDC_FORMAT_MACROS \
 	-D__STDC_LIMIT_MACROS \
 	-Wno-error=non-virtual-dtor \
-	-Wno-non-virtual-dtor
+	-Wno-non-virtual-dtor	\
+	-Wno-delete-non-virtual-dtor \
+	-Wno-overloaded-virtual \
+	-Wno-missing-braces \
+	-Wno-deprecated-register
 
 # mesa requires at least c99 compiler
 LOCAL_CONLYFLAGS += \

@@ -28,7 +28,7 @@
 # ---------------------------------------
 
 include $(CLEAR_VARS)
-
+LOCAL_CFLAGS += -Wno-error
 LOCAL_MODULE := libmesa_intel_compiler
 LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 
