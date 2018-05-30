@@ -184,12 +184,58 @@ brw_fence_insert_locked(struct brw_context *brw, struct brw_fence *fence)
 }
 
 static bool MUST_CHECK
+brw_fence_insert_opt_locked(struct brw_context *brw, struct brw_fence *fence)
+{
+   __DRIcontext *driContext = brw->driContext;
+   __DRIdrawable *driDrawable = driContext->driDrawablePriv;
+
+   /*
+    * From  https://www.khronos.org/registry/EGL/extensions/KHR/EGL_KHR_wait_sync.txt
+    * The command
+    *
+    *    EGLint eglWaitSyncKHR(EGLDisplay dpy,
+    *                          EGLSyncKHR sync,
+    *                          EGLint flags)
+    *
+    * is similar to eglClientWaitSyncKHR, but instead of blocking and not
+    * returning to the application until <sync> is signaled, eglWaitSyncKHR
+    * returns immediately.
+    *
+    */
+   if (driDrawable)
+      intel_resolve_for_dri2_flush(brw, driDrawable);
+   brw_emit_mi_flush(brw);
+
+   switch (fence->type) {
+   case BRW_FENCE_TYPE_SYNC_FD:
+      assert(!fence->signalled);
+
+      if (fence->sync_fd == -1) {
+	 /* Create an out-fence that signals after all pending commands
+	  * complete.
+	  */
+	 if (intel_batchbuffer_flush_fence(brw, -1, &fence->sync_fd) < 0)
+	    return false;
+	 assert(fence->sync_fd != -1);
+      } else {
+	 /* Emit a dummy batch just for the fence. */
+	 brw_emit_mi_flush(brw);
+	 if (intel_batchbuffer_flush_fence(brw, fence->sync_fd, NULL) < 0)
+	    return false;
+      }
+      break;
+   }
+
+   return true;
+}
+
+static bool MUST_CHECK
 brw_fence_insert(struct brw_context *brw, struct brw_fence *fence)
 {
    bool ret;
 
    mtx_lock(&fence->mutex);
-   ret = brw_fence_insert_locked(brw, fence);
+   ret = brw_fence_insert_opt_locked(brw, fence);
    mtx_unlock(&fence->mutex);
 
    return ret;
