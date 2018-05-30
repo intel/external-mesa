@@ -48,7 +48,7 @@ LOCAL_STATIC_LIBRARIES := \
 	libmesa_nir
 
 LOCAL_MODULE := libmesa_glsl
-
+LOCAL_CFLAGS += -Wno-error
 include $(LOCAL_PATH)/Android.glsl.gen.mk
 include $(MESA_COMMON_MK)
 include $(BUILD_STATIC_LIBRARY)

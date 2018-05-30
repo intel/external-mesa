@@ -274,6 +274,8 @@ LOCAL_LDFLAGS += $(MESA_DRI_LDFLAGS)
 LOCAL_CFLAGS := \
 	$(MESA_DRI_CFLAGS)
 
+LOCAL_CFLAGS += -Wno-error
+
 LOCAL_C_INCLUDES := \
 	$(MESA_DRI_C_INCLUDES) \
 	$(call generated-sources-dir-for,STATIC_LIBRARIES,libmesa_glsl,,) \
