@@ -46,6 +46,7 @@ LOCAL_C_INCLUDES := \
 	$(MESA_TOP)/include/drm-uapi \
 	$(MESA_TOP)/src/egl/main \
 	$(MESA_TOP)/src/egl/drivers/dri2 \
+	frameworks/native/libs/nativebase/include \
 	frameworks/native/libs/nativewindow/include \
 	frameworks/native/libs/arect/include
 
@@ -91,6 +92,6 @@ endif
 
 LOCAL_MODULE := libGLES_mesa
 LOCAL_MODULE_RELATIVE_PATH := egl
-
+LOCAL_CFLAGS += -Wno-error
 include $(MESA_COMMON_MK)
 include $(BUILD_SHARED_LIBRARY)
