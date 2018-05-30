@@ -41,7 +41,7 @@ endef
 include $(MESA_TOP)/src/mesa/Makefile.sources
 
 include $(CLEAR_VARS)
-
+LOCAL_CFLAGS += -Wno-error
 LOCAL_MODULE := libmesa_program
 LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 LOCAL_STATIC_LIBRARIES := libmesa_nir \
