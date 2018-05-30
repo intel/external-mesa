@@ -249,7 +249,7 @@ include $(BUILD_STATIC_LIBRARY)
 include $(CLEAR_VARS)
 LOCAL_MODULE := libmesa_vulkan_common
 LOCAL_MODULE_CLASS := STATIC_LIBRARIES
-
+LOCAL_CFLAGS += -Wno-error
 intermediates := $(call local-generated-sources-dir)
 
 LOCAL_SRC_FILES := $(VULKAN_FILES)
