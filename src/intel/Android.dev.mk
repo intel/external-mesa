@@ -33,5 +33,8 @@ LOCAL_C_INCLUDES := $(MESA_TOP)/include/drm-uapi
 
 LOCAL_SRC_FILES := $(DEV_FILES)
 
+LOCAL_CFLAGS := \
+           -Wno-gnu-variable-sized-type-not-at-end
+
 include $(MESA_COMMON_MK)
 include $(BUILD_STATIC_LIBRARY)
