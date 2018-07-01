@@ -44,6 +44,7 @@ LOCAL_SHARED_LIBRARIES := libz
 ifeq ($(shell test $(PLATFORM_SDK_VERSION) -ge 27; echo $$?), 0)
 LOCAL_STATIC_LIBRARIES := \
 	libexpat
+LOCAL_HEADER_LIBRARIES += liblog_headers
 else
 LOCAL_SHARED_LIBRARIES += \
 	libexpat
