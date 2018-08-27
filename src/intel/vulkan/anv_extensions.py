@@ -71,14 +71,14 @@ MAX_API_VERSION = None # Computed later
 EXTENSIONS = [
     Extension('VK_ANDROID_native_buffer',                 5, 'ANDROID'),
     Extension('VK_KHR_16bit_storage',                     1, 'device->info.gen >= 8'),
-    Extension('VK_KHR_8bit_storage',                      1, 'device->info.gen >= 8'),
+    Extension('VK_KHR_8bit_storage',                      1, 'device->info.gen >= 8 && !ANDROID'),
     Extension('VK_KHR_bind_memory2',                      1, True),
-    Extension('VK_KHR_create_renderpass2',                1, True),
+    Extension('VK_KHR_create_renderpass2',                1, '!ANDROID'),
     Extension('VK_KHR_dedicated_allocation',              1, True),
     Extension('VK_KHR_descriptor_update_template',        1, True),
     Extension('VK_KHR_device_group',                      1, True),
     Extension('VK_KHR_device_group_creation',             1, True),
-    Extension('VK_KHR_driver_properties',                 1, True),
+    Extension('VK_KHR_driver_properties',                 1, '!ANDROID'),
     Extension('VK_KHR_external_fence',                    1,
               'device->has_syncobj_wait'),
     Extension('VK_KHR_external_fence_capabilities',       1, True),
@@ -128,8 +128,8 @@ EXTENSIONS = [
     Extension('VK_EXT_post_depth_coverage',               1, 'device->info.gen >= 9'),
     Extension('VK_EXT_sampler_filter_minmax',             1, 'device->info.gen >= 9'),
     Extension('VK_EXT_calibrated_timestamps',             1, True),
-    Extension('VK_GOOGLE_decorate_string',                1, True),
-    Extension('VK_GOOGLE_hlsl_functionality1',            1, True),
+    Extension('VK_GOOGLE_decorate_string',                1, '!ANDROID'),
+    Extension('VK_GOOGLE_hlsl_functionality1',            1, '!ANDROID'),
 ]
 
 class VkVersion:
