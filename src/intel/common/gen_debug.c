@@ -85,6 +85,7 @@ static const struct debug_control debug_control[] = {
    { "nohiz",       DEBUG_NO_HIZ },
    { "color",       DEBUG_COLOR },
    { "reemit",      DEBUG_REEMIT },
+   { "heur32",      DEBUG_HEUR32 },
    { NULL,    0 }
 };
 
