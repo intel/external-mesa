@@ -7253,6 +7253,32 @@ brw_compile_fs(const struct brw_compiler *compiler, void *log_data,
    return g.get_assembly();
 }
 
+bool
+fs_visitor::run_heuristic(const struct brw_simd32_heuristics_control *ctrl) {
+   int grouped_sends = 0;
+   int max_grouped_sends = 0;
+   bool pass = true;
+
+   foreach_block_and_inst(block, fs_inst, inst, cfg) {
+      if (inst->opcode >= SHADER_OPCODE_TEX && inst->opcode <= SHADER_OPCODE_SAMPLEINFO_LOGICAL) {
+         ++grouped_sends;
+      } else if (grouped_sends > 0) {
+         if (grouped_sends > max_grouped_sends) {
+            max_grouped_sends = grouped_sends;
+         }
+         grouped_sends = 0;
+      }
+   }
+
+   if (ctrl->grouped_sends_check) {
+      if (max_grouped_sends > ctrl->max_grouped_sends) {
+         pass = false;
+      }
+   }
+
+   return pass;
+}
+
 fs_reg *
 fs_visitor::emit_cs_work_group_id_setup()
 {

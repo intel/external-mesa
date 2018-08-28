@@ -285,6 +285,8 @@ public:
    void dump_instruction(backend_instruction *inst);
    void dump_instruction(backend_instruction *inst, FILE *file);
 
+   bool run_heuristic(const struct brw_simd32_heuristics_control *ctrl);
+
    const void *const key;
    const struct brw_sampler_prog_key_data *key_tex;
 
