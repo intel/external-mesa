@@ -7152,9 +7152,16 @@ brw_compile_fs(const struct brw_compiler *compiler, void *log_data,
    }
 
    /* Currently, the compiler only supports SIMD32 on SNB+ */
+   const brw_simd32_heuristics_control *ctrl = &compiler->simd32_heuristics_control;
+   uint64_t mrts = shader->info.outputs_written << FRAG_RESULT_DATA0;
+
    if (v8.max_dispatch_width >= 32 && !use_rep_send &&
        compiler->devinfo->gen >= 6 &&
-       unlikely(INTEL_DEBUG & DEBUG_DO32)) {
+       (unlikely(INTEL_DEBUG & DEBUG_DO32) ||
+        (unlikely(INTEL_DEBUG & DEBUG_HEUR32) &&
+         (!ctrl->mrt_check ||
+          (ctrl->mrt_check &&
+          u_count_bits64(&mrts) <= ctrl->max_mrts))))) {
       /* Try a SIMD32 compile */
       fs_visitor v32(compiler, log_data, mem_ctx, key,
                      &prog_data->base, prog, shader, 32,
@@ -7165,9 +7172,13 @@ brw_compile_fs(const struct brw_compiler *compiler, void *log_data,
                                    "SIMD32 shader failed to compile: %s",
                                    v32.fail_msg);
       } else {
-         simd32_cfg = v32.cfg;
-         prog_data->dispatch_grf_start_reg_32 = v32.payload.num_regs;
-         prog_data->reg_blocks_32 = brw_register_blocks(v32.grf_used);
+         if (likely(!(INTEL_DEBUG & DEBUG_HEUR32)) ||
+             (unlikely(INTEL_DEBUG & DEBUG_HEUR32) &&
+              v32.run_heuristic(ctrl))) {
+            simd32_cfg = v32.cfg;
+            prog_data->dispatch_grf_start_reg_32 = v32.payload.num_regs;
+            prog_data->reg_blocks_32 = brw_register_blocks(v32.grf_used);
+         }
       }
    }
 
@@ -7246,8 +7257,18 @@ brw_compile_fs(const struct brw_compiler *compiler, void *log_data,
    }
 
    if (simd32_cfg) {
-      prog_data->dispatch_32 = true;
-      prog_data->prog_offset_32 = g.generate_code(simd32_cfg, 32);
+      uint32_t offset = g.generate_code(simd32_cfg, 32);
+
+      if (unlikely(INTEL_DEBUG & DEBUG_DO32) ||
+          (unlikely(INTEL_DEBUG & DEBUG_HEUR32) &&
+           (!simd16_cfg ||
+            (simd16_cfg &&
+             (!ctrl->inst_count_check ||
+             (ctrl->inst_count_check &&
+             (float)g.get_inst_count(32) / (float)g.get_inst_count(16) <= ctrl->inst_count_ratio)))))) {
+         prog_data->dispatch_32 = true;
+         prog_data->prog_offset_32 = offset;
+      }
    }
 
    return g.get_assembly();
