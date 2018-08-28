@@ -38,6 +38,15 @@ struct ra_regs;
 struct nir_shader;
 struct brw_program;
 
+struct brw_simd32_heuristics_control {
+   bool grouped_sends_check;
+   int max_grouped_sends;
+   bool inst_count_check;
+   float inst_count_ratio;
+   bool mrt_check;
+   int max_mrts;
+};
+
 struct brw_compiler {
    const struct gen_device_info *devinfo;
 
@@ -118,6 +127,8 @@ struct brw_compiler {
     * whether nir_opt_large_constants will be run.
     */
    bool supports_shader_constants;
+
+   struct brw_simd32_heuristics_control simd32_heuristics_control;
 };
 
 /**
