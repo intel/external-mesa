@@ -104,6 +104,12 @@ typedef struct ANativeWindow*           EGLNativeWindowType;
 typedef struct egl_native_pixmap_t*     EGLNativePixmapType;
 typedef void*                           EGLNativeDisplayType;
 
+#elif defined(OS_YUNOS)
+
+typedef void* EGLNativeWindowType;
+typedef void* EGLNativePixmapType;
+typedef void* EGLNativeDisplayType;
+
 #elif defined(USE_OZONE)
 
 typedef intptr_t EGLNativeDisplayType;

@@ -62,6 +62,12 @@ struct zwp_linux_dmabuf_v1;
 #include <gbm_driint.h>
 #endif
 
+#ifdef HAVE_YUNOS_PLATFORM
+#include <cutils/graphics.h>
+#include <cutils/native_surface.h>
+#include <cutils/yalloc.h>
+#endif /* HAVE_YUNOS_PLATFORM */
+
 #ifdef HAVE_ANDROID_PLATFORM
 #define LOG_TAG "EGL-DRI2"
 
@@ -232,6 +238,11 @@ struct dri2_egl_display
    char                     *device_name;
 #endif
 
+#ifdef HAVE_YUNOS_PLATFORM
+   int is_buf_prime_fd;
+   struct yalloc_device_t  *yalloc;
+#endif
+
 #ifdef HAVE_ANDROID_PLATFORM
    const hw_module_t *gralloc;
    uint16_t gralloc_version;
@@ -301,6 +312,7 @@ struct dri2_egl_surface
    struct {
 #ifdef HAVE_WAYLAND_PLATFORM
       struct wl_buffer   *wl_buffer;
+      bool                wl_release;
       __DRIimage         *dri_image;
       /* for is_different_gpu case. NULL else */
       __DRIimage         *linear_copy;
@@ -335,6 +347,13 @@ struct dri2_egl_surface
 #if defined(HAVE_SURFACELESS_PLATFORM)
       __DRIimage           *front;
       unsigned int         visual;
+#endif
+
+#ifdef HAVE_YUNOS_PLATFORM
+   struct NativeSurface 		*surface;
+   struct NativeSurfaceBuffer 	*buffer;
+   __DRIimage                   *dri_image_back;
+   __DRIimage                   *dri_image_front;
 #endif
    int out_fence_fd;
    EGLBoolean enable_out_fence;
@@ -488,6 +507,17 @@ static inline EGLBoolean
 dri2_initialize_surfaceless(_EGLDriver *drv, _EGLDisplay *disp)
 {
    return _eglError(EGL_NOT_INITIALIZED, "Surfaceless platform not built");
+}
+#endif
+
+#ifdef HAVE_YUNOS_PLATFORM
+EGLBoolean
+dri2_initialize_yunos(_EGLDriver *drv, _EGLDisplay *disp);
+#else
+static inline EGLBoolean
+dri2_initialize_yunos(_EGLDriver *drv, _EGLDisplay *disp)
+{
+   return _eglError(EGL_NOT_INITIALIZED, "yunos platform not built");
 }
 #endif
 

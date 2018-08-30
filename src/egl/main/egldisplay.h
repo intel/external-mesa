@@ -50,6 +50,7 @@ enum _egl_platform_type {
    _EGL_PLATFORM_ANDROID,
    _EGL_PLATFORM_HAIKU,
    _EGL_PLATFORM_SURFACELESS,
+   _EGL_PLATFORM_YUNOS,
 
    _EGL_NUM_PLATFORMS,
    _EGL_INVALID_PLATFORM = -1
@@ -143,6 +144,8 @@ struct _egl_extensions
 
    EGLBoolean WL_bind_wayland_display;
    EGLBoolean WL_create_wayland_buffer_from_image;
+
+   EGLBoolean YUNOS_image_native_buffer;
 };
 
 

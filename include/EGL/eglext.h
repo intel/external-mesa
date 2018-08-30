@@ -500,6 +500,11 @@ EGLAPI EGLClientBuffer EGLAPIENTRY eglCreateNativeClientBufferANDROID (const EGL
 #define EGL_NATIVE_BUFFER_ANDROID         0x3140
 #endif /* EGL_ANDROID_image_native_buffer */
 
+#ifndef EGL_YUNOS_image_native_buffer
+#define EGL_YUNOS_image_native_buffer 1
+#define EGL_NATIVE_BUFFER_YUNOS        0x3150
+#endif /* EGL_YUNOS_image_native_buffer */
+
 #ifndef EGL_ANDROID_native_fence_sync
 #define EGL_ANDROID_native_fence_sync 1
 #define EGL_SYNC_NATIVE_FENCE_ANDROID     0x3144
@@ -1234,6 +1239,16 @@ EGLAPI EGLuint64NV EGLAPIENTRY eglGetSystemTimeNV (void);
 #define EGL_TIZEN_image_native_surface 1
 #define EGL_NATIVE_SURFACE_TIZEN          0x32A1
 #endif /* EGL_TIZEN_image_native_surface */
+
+#ifndef EGL_YUNOS_native_display
+#define EGL_YUNOS_native_display 1
+/*
+  * YunHAL native display
+  * Value: "YHAL" in ASCII code
+  */
+#define EGL_YUNOS_YUNHAL_DISPLAY   ((EGLNativeDisplayType)0x5948414c)
+#endif /* EGL_YUNOS_native_display */
+
 
 #include <EGL/eglmesaext.h>
 #include <EGL/eglextchromium.h>

@@ -531,6 +531,8 @@ _eglCreateExtensionsString(_EGLDisplay *dpy)
    _EGL_CHECK_EXTENSION(WL_bind_wayland_display);
    _EGL_CHECK_EXTENSION(WL_create_wayland_buffer_from_image);
 
+   _EGL_CHECK_EXTENSION(YUNOS_image_native_buffer);
+
 #undef _EGL_CHECK_EXTENSION
 }
 
