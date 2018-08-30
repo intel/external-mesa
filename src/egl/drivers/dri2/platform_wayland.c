@@ -106,6 +106,178 @@ static const struct dri2_wl_visual {
    },
 };
 
+/* to avoid compile errors on AliOS */
+#ifdef OS_YUNOS
+#define WL_SURFACE_DAMAGE_BUFFER_SINCE_VERSION 4
+#define WL_SURFACE_DAMAGE_BUFFER 9
+
+enum wl_proxy_flag {
+	WL_PROXY_FLAG_ID_DELETED = (1 << 0),
+	WL_PROXY_FLAG_DESTROYED = (1 << 1),
+	WL_PROXY_FLAG_WRAPPER = (1 << 2),
+};
+
+struct wl_map {
+  struct wl_array client_entries;
+  struct wl_array server_entries;
+  uint32_t side;
+  uint32_t free_list;
+};
+
+struct wl_object {
+  const struct wl_interface *interface;
+  const void *implementation;
+  uint32_t id;
+};
+
+struct wl_proxy {
+	struct wl_object object;
+	struct wl_display *display;
+	struct wl_event_queue *queue;
+	uint32_t flags;
+	int refcount;
+	void *user_data;
+	wl_dispatcher_func_t dispatcher;
+	uint32_t version;
+};
+
+struct wl_event_queue {
+	struct wl_list event_list;
+	struct wl_display *display;
+};
+
+struct wl_display {
+	struct wl_proxy proxy;
+	struct wl_connection *connection;
+
+	/* errno of the last wl_display error */
+	int last_error;
+
+	/* When display gets an error event from some object, it stores
+	 * information about it here, so that client can get this
+	 * information afterwards */
+	struct {
+		/* Code of the error. It can be compared to
+		 * the interface's errors enumeration. */
+		uint32_t code;
+		/* interface (protocol) in which the error occurred */
+		const struct wl_interface *interface;
+		/* id of the proxy that caused the error. There's no warranty
+		 * that the proxy is still valid. It's up to client how it will
+		 * use it */
+		uint32_t id;
+	} protocol_error;
+	int fd;
+	struct wl_map objects;
+	struct wl_event_queue display_queue;
+	struct wl_event_queue default_queue;
+	pthread_mutex_t mutex;
+
+	int reader_count;
+	uint32_t read_serial;
+	pthread_cond_t reader_cond;
+};
+
+static inline void wl_surface_damage_buffer(struct wl_surface *wl_surface, int32_t x, int32_t y, int32_t width, int32_t height)
+{
+  wl_proxy_marshal((struct wl_proxy *) wl_surface, WL_SURFACE_DAMAGE_BUFFER, x, y, width, height);
+}
+
+static uint32_t wl_proxy_get_version(struct wl_proxy *proxy)
+{
+	return proxy->version;
+}
+
+/** Create a proxy wrapper for making queue assignments thread-safe
+ *
+ * \param proxy The proxy object to be wrapped
+ * \return A proxy wrapper for the given proxy or NULL on failure
+ *
+ * A proxy wrapper is type of 'struct wl_proxy' instance that can be used when
+ * sending requests instead of using the original proxy. A proxy wrapper does
+ * not have an implementation or dispatcher, and events received on the
+ * object is still emitted on the original proxy. Trying to set an
+ * implementation or dispatcher will have no effect but result in a warning
+ * being logged.
+ *
+ * Setting the proxy queue of the proxy wrapper will make new objects created
+ * using the proxy wrapper use the set proxy queue.
+ * Even though there is no implementation nor dispatcher, the proxy queue can
+ * be changed. This will affect the default queue of new objects created by
+ * requests sent via the proxy wrapper.
+ *
+ * A proxy wrapper can only be destroyed using wl_proxy_wrapper_destroy().
+ *
+ * A proxy wrapper must be destroyed before the proxy it was created from.
+ *
+ * If a user reads and dispatches events on more than one thread, it is
+ * necessary to use a proxy wrapper when sending requests on objects when the
+ * intention is that a newly created proxy is to use a proxy queue different
+ * from the proxy the request was sent on, as creating the new proxy and then
+ * setting the queue is not thread safe.
+ *
+ * For example, a module that runs using its own proxy queue that needs to
+ * do display roundtrip must wrap the wl_display proxy object before sending
+ * the wl_display.sync request. For example:
+ *
+ * \code
+ *
+ *   struct wl_event_queue *queue = ...;
+ *   struct wl_display *wrapped_display;
+ *   struct wl_callback *callback;
+ *
+ *   wrapped_display = wl_proxy_create_wrapper(display);
+ *   wl_proxy_set_queue((struct wl_proxy *) wrapped_display, queue);
+ *   callback = wl_display_sync(wrapped_display);
+ *   wl_proxy_wrapper_destroy(wrapped_display);
+ *   wl_callback_add_listener(callback, ...);
+ *
+ * \endcode
+ *
+ * \memberof wl_proxy
+ */
+static void *wl_proxy_create_wrapper(void *proxy)
+{
+	struct wl_proxy *wrapped_proxy = proxy;
+	struct wl_proxy *wrapper;
+
+	wrapper = calloc(1, sizeof *wrapper);
+	if (!wrapper)
+		return NULL;
+
+	pthread_mutex_lock(&wrapped_proxy->display->mutex);
+
+	wrapper->object.interface = wrapped_proxy->object.interface;
+	wrapper->object.id = wrapped_proxy->object.id;
+	wrapper->version = wrapped_proxy->version;
+	wrapper->display = wrapped_proxy->display;
+	wrapper->queue = wrapped_proxy->queue;
+	wrapper->flags = WL_PROXY_FLAG_WRAPPER;
+	wrapper->refcount = 1;
+
+	pthread_mutex_unlock(&wrapped_proxy->display->mutex);
+
+	return wrapper;
+}
+
+/** Destroy a proxy wrapper
+ * \param proxy_wrapper The proxy wrapper to be destroyed
+ *
+ * \memberof wl_proxy
+ */
+static void wl_proxy_wrapper_destroy(void *proxy_wrapper)
+{
+	struct wl_proxy *wrapper = proxy_wrapper;
+
+	if (!(wrapper->flags & WL_PROXY_FLAG_WRAPPER))
+		printf("Tried to destroy non-wrapper proxy with "
+			 "wl_proxy_wrapper_destroy\n");
+
+	assert(wrapper->refcount == 1);
+
+	free(wrapper);
+}
+#endif
 static int
 dri2_wl_visual_idx_from_config(struct dri2_egl_display *dri2_dpy,
                                const __DRIconfig *config)

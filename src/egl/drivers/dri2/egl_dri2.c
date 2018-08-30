@@ -944,6 +944,11 @@ dri2_initialize(_EGLDriver *drv, _EGLDisplay *disp)
    case _EGL_PLATFORM_ANDROID:
       ret = dri2_initialize_android(drv, disp);
       break;
+#ifdef HAVE_YUNOS_PLATFORM
+   case _EGL_PLATFORM_YUNOS:
+      ret = dri2_initialize_yunos(drv, disp);
+      break;
+#endif
    default:
       unreachable("Callers ensure we cannot get here.");
       return EGL_FALSE;

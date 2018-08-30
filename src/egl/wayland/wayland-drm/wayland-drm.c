@@ -115,6 +115,7 @@ drm_create_buffer(struct wl_client *client, struct wl_resource *resource,
         case WL_DRM_FORMAT_XRGB2101010:
         case WL_DRM_FORMAT_ARGB8888:
         case WL_DRM_FORMAT_XRGB8888:
+        case WL_DRM_FORMAT_ABGR8888:
         case WL_DRM_FORMAT_YUYV:
         case WL_DRM_FORMAT_RGB565:
                 break;

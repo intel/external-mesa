@@ -70,6 +70,7 @@ static const struct {
    { _EGL_PLATFORM_ANDROID, "android" },
    { _EGL_PLATFORM_HAIKU, "haiku" },
    { _EGL_PLATFORM_SURFACELESS, "surfaceless" },
+   { _EGL_PLATFORM_YUNOS, "yunos" },
 };
 
 
@@ -126,6 +127,11 @@ _eglNativePlatformDetectNativeDisplay(void *nativeDisplay)
       /* gbm has a pointer to its constructor as first element. */
       if (first_pointer == gbm_create_device)
          return _EGL_PLATFORM_DRM;
+#endif
+
+#ifdef HAVE_YUNOS_PLATFORM
+      if (first_pointer == EGL_YUNOS_YUNHAL_DISPLAY)
+         return _EGL_PLATFORM_YUNOS;
 #endif
 
 #ifdef HAVE_X11_PLATFORM

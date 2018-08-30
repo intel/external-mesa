@@ -1857,6 +1857,10 @@ for plat in $platforms; do
         DEFINES="$DEFINES -DHAVE_ANDROID_PLATFORM"
         ;;
 
+    yunos)
+       DEFINES="$DEFINES -DHAVE_YUNOS_PLATFORM"
+       ;;
+
     *)
         AC_MSG_ERROR([platform '$plat' does not exist])
         ;;
@@ -1908,6 +1912,7 @@ AM_CONDITIONAL(HAVE_PLATFORM_WAYLAND, echo "$platforms" | grep -q 'wayland')
 AM_CONDITIONAL(HAVE_PLATFORM_DRM, echo "$platforms" | grep -q 'drm')
 AM_CONDITIONAL(HAVE_PLATFORM_SURFACELESS, echo "$platforms" | grep -q 'surfaceless')
 AM_CONDITIONAL(HAVE_PLATFORM_ANDROID, echo "$platforms" | grep -q 'android')
+AM_CONDITIONAL(HAVE_PLATFORM_YUNOS, echo "$platforms" | grep -q 'yunos')
 
 AC_ARG_ENABLE(xlib-lease,
     [AS_HELP_STRING([--enable-xlib-lease]
