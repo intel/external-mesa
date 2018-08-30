@@ -69,6 +69,12 @@ struct zwp_linux_dmabuf_v1;
 #include <hardware/gralloc.h>
 #endif /* HAVE_ANDROID_PLATFORM */
 
+#ifdef HAVE_YUNOS_PLATFORM
+#include <cutils/graphics.h>
+#include <cutils/native_surface.h>
+#include <cutils/yalloc.h>
+#endif /* HAVE_YUNOS_PLATFORM */
+
 #ifdef HAVE_GRALLOC1
 #include <hardware/gralloc1.h>
 #endif
@@ -232,6 +238,11 @@ struct dri2_egl_display
    char                     *device_name;
 #endif
 
+#ifdef HAVE_YUNOS_PLATFORM
+   int is_buf_prime_fd;
+   struct yalloc_device_t  *yalloc;
+#endif
+
 #ifdef HAVE_ANDROID_PLATFORM
    const hw_module_t *gralloc;
    uint16_t gralloc_version;
@@ -335,6 +346,13 @@ struct dri2_egl_surface
 #if defined(HAVE_SURFACELESS_PLATFORM)
       __DRIimage           *front;
       unsigned int         visual;
+#endif
+
+#ifdef HAVE_YUNOS_PLATFORM
+   struct NativeSurface 		*surface;
+   struct NativeSurfaceBuffer 	*buffer;
+   __DRIimage                   *dri_image;
+   __DRIimage                   *dri_image2;
 #endif
    int out_fence_fd;
    EGLBoolean enable_out_fence;
@@ -490,6 +508,9 @@ dri2_initialize_surfaceless(_EGLDriver *drv, _EGLDisplay *disp)
    return _eglError(EGL_NOT_INITIALIZED, "Surfaceless platform not built");
 }
 #endif
+
+EGLBoolean
+dri2_initialize_yunos(_EGLDriver *drv, _EGLDisplay *disp);
 
 void
 dri2_flush_drawable_for_swapbuffers(_EGLDisplay *disp, _EGLSurface *draw);

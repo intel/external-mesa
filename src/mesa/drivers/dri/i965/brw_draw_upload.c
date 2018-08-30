@@ -631,6 +631,8 @@ brw_prepare_vertices(struct brw_context *brw)
 
       buffer->bo = intel_bufferobj_buffer(brw, enabled_buffer[i], start,
                                           range, false);
+      if (buffer->bo == NULL)
+         return;
       brw_bo_reference(buffer->bo);
    }
 
