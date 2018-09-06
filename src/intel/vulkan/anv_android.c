@@ -234,7 +234,7 @@ VkResult anv_GetSwapchainGrallocUsageANDROID(
    *grallocUsage = 0;
    intel_logd("%s: format=%d, usage=0x%x", __func__, format, imageUsage);
 
-   /* WARNING: Android Nougat's libvulkan.so hardcodes the VkImageUsageFlags
+   /* WARNING: Android's libvulkan.so hardcodes the VkImageUsageFlags
     * returned to applications via VkSurfaceCapabilitiesKHR::supportedUsageFlags.
     * The relevant code in libvulkan/swapchain.cpp contains this fun comment:
     *
@@ -247,13 +247,24 @@ VkResult anv_GetSwapchainGrallocUsageANDROID(
     * dEQP-VK.wsi.android.swapchain.*.image_usage to fail.
     */
 
-   const VkPhysicalDeviceImageFormatInfo2KHR image_format_info = {
+   VkPhysicalDeviceImageFormatInfo2KHR image_format_info = {
       .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_FORMAT_INFO_2_KHR,
       .format = format,
       .type = VK_IMAGE_TYPE_2D,
       .tiling = VK_IMAGE_TILING_OPTIMAL,
       .usage = imageUsage,
    };
+
+   /* Android P and earlier doesn't check if the physical device supports a
+    * given format and usage combination before calling this function. Omit the
+    * storage requirement to make the tests pass.
+    */
+#if ANDROID_API_LEVEL <= 28
+   if (format == VK_FORMAT_R8G8B8A8_SRGB ||
+       format == VK_FORMAT_R5G6B5_UNORM_PACK16) {
+      image_format_info.usage &= ~VK_IMAGE_USAGE_STORAGE_BIT;
+   }
+#endif
 
    VkImageFormatProperties2KHR image_format_props = {
       .sType = VK_STRUCTURE_TYPE_IMAGE_FORMAT_PROPERTIES_2_KHR,
@@ -268,19 +279,13 @@ VkResult anv_GetSwapchainGrallocUsageANDROID(
                        "inside %s", __func__);
    }
 
-   /* Reject STORAGE here to avoid complexity elsewhere. */
-   if (imageUsage & VK_IMAGE_USAGE_STORAGE_BIT) {
-      return vk_errorf(device->instance, device, VK_ERROR_FORMAT_NOT_SUPPORTED,
-                       "VK_IMAGE_USAGE_STORAGE_BIT unsupported for gralloc "
-                       "swapchain");
-   }
-
    if (unmask32(&imageUsage, VK_IMAGE_USAGE_TRANSFER_DST_BIT |
                              VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT))
       *grallocUsage |= GRALLOC_USAGE_HW_RENDER;
 
    if (unmask32(&imageUsage, VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
                              VK_IMAGE_USAGE_SAMPLED_BIT |
+                             VK_IMAGE_USAGE_STORAGE_BIT |
                              VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT))
       *grallocUsage |= GRALLOC_USAGE_HW_TEXTURE;
 
