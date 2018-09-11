@@ -285,6 +285,8 @@ public:
    void dump_instruction(backend_instruction *inst);
    void dump_instruction(backend_instruction *inst, FILE *file);
 
+   bool run_heuristic(const struct brw_simd32_heuristics_control *ctrl);
+
    const void *const key;
    const struct brw_sampler_prog_key_data *key_tex;
 
@@ -396,6 +398,7 @@ public:
 
    void enable_debug(const char *shader_name);
    int generate_code(const cfg_t *cfg, int dispatch_width);
+   int get_inst_count(int dispatch_width);
    const unsigned *get_assembly();
 
 private:
@@ -488,6 +491,7 @@ private:
    struct brw_stage_prog_data * const prog_data;
 
    unsigned dispatch_width; /**< 8, 16 or 32 */
+   int inst_count[3]; /* for 8, 16 and 32 */
 
    exec_list discard_halt_patches;
    unsigned promoted_constants;
