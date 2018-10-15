@@ -893,6 +893,19 @@ brw_process_driconf_options(struct brw_context *brw)
    ctx->Const.dri_config_options_sha1 = ralloc_array(brw, unsigned char, 20);
    driComputeOptionsSha1(&brw->screen->optionCache,
                          ctx->Const.dri_config_options_sha1);
+
+   brw->screen->compiler->simd32_heuristics_control.grouped_sends_check =
+      driQueryOptionb(&brw->optionCache, "simd32_heuristic_grouped_check");
+   brw->screen->compiler->simd32_heuristics_control.max_grouped_sends =
+      driQueryOptioni(&brw->optionCache, "simd32_heuristic_grouped_sends");
+   brw->screen->compiler->simd32_heuristics_control.inst_count_check =
+      driQueryOptionb(&brw->optionCache, "simd32_heuristic_inst_check");
+   brw->screen->compiler->simd32_heuristics_control.inst_count_ratio =
+      driQueryOptionf(&brw->optionCache, "simd32_heuristic_inst_ratio");
+   brw->screen->compiler->simd32_heuristics_control.mrt_check =
+      driQueryOptionb(&brw->optionCache, "simd32_heuristic_mrt_check");
+   brw->screen->compiler->simd32_heuristics_control.max_mrts =
+      driQueryOptioni(&brw->optionCache, "simd32_heuristic_max_mrts");
 }
 
 GLboolean
