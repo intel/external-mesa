@@ -112,6 +112,31 @@ u_bit_scan64(uint64_t *mask)
    return i;
 }
 
+/* Count bits set in mask */
+static inline int
+u_count_bits(unsigned *mask)
+{
+   unsigned v = *mask;
+   int c;
+   v = v - ((v >> 1) & 0x55555555);
+   v = (v & 0x33333333) + ((v >> 2) & 0x33333333);
+   v = (v + (v >> 4)) & 0xF0F0F0F;
+   c = (int)((v * 0x1010101) >> 24);
+   return c;
+}
+
+static inline int
+u_count_bits64(uint64_t *mask)
+{
+   uint64_t v = *mask;
+   int c;
+   v = v - ((v >> 1) & 0x5555555555555555ull);
+   v = (v & 0x3333333333333333ull) + ((v >> 2) & 0x3333333333333333ull);
+   v = (v + (v >> 4)) & 0xF0F0F0F0F0F0F0Full;
+   c = (int)((v * 0x101010101010101ull) >> 56);
+   return c;
+}
+
 /* Determine if an unsigned value is a power of two.
  *
  * \note
