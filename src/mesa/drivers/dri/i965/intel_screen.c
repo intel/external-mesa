@@ -61,6 +61,33 @@ DRI_CONF_BEGIN
 	    DRI_CONF_ENUM(1, "Enable reuse of all sizes of buffer objects")
 	 DRI_CONF_DESC_END
       DRI_CONF_OPT_END
+
+      DRI_CONF_OPT_BEGIN_B(simd32_heuristic_grouped_check, "true")
+              DRI_CONF_DESC(en, "Enable/disable grouped texture fetch "
+                            "check in the SIMD32 selection heuristic.")
+      DRI_CONF_OPT_END
+      DRI_CONF_OPT_BEGIN_V(simd32_heuristic_grouped_sends, int, 6, "1:999")
+             DRI_CONF_DESC(en, "How many grouped texture fetches should "
+                            "the SIMD32 selection heuristic allow.")
+      DRI_CONF_OPT_END
+      DRI_CONF_OPT_BEGIN_B(simd32_heuristic_inst_check, "true")
+              DRI_CONF_DESC(en, "Enable/disable SIMD32/SIMD16 instruction "
+                            "count ratio check in the SIMD32 selection "
+                            "heuristic.")
+      DRI_CONF_OPT_END
+      DRI_CONF_OPT_BEGIN_V(simd32_heuristic_inst_ratio, float, 2.3, "1:999")
+              DRI_CONF_DESC(en, "SIMD32/SIMD16 instruction count ratio "
+                            "the SIMD32 selection heuristic should allow.")
+      DRI_CONF_OPT_END
+      DRI_CONF_OPT_BEGIN_B(simd32_heuristic_mrt_check, "true")
+              DRI_CONF_DESC(en, "Enable/disable MRT write check in the "
+                            "SIMD32 selection heuristic.")
+      DRI_CONF_OPT_END
+      DRI_CONF_OPT_BEGIN_V(simd32_heuristic_max_mrts, int, 1, "1:8")
+              DRI_CONF_DESC(en, "How many MRT writes should the SIMD32 "
+                            "selection heuristic allow.")
+      DRI_CONF_OPT_END
+
       DRI_CONF_MESA_NO_ERROR("false")
    DRI_CONF_SECTION_END
 
