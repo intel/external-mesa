@@ -1581,6 +1581,11 @@ VkResult anv_CreateDevice(
    ANV_FROM_HANDLE(anv_physical_device, physical_device, physicalDevice);
    VkResult result;
    struct anv_device *device;
+   FILE *fp = NULL;
+   char procPath[WAIT_DETECT_MAX_LEN]={0};
+   char procName[WAIT_DETECT_MAX_LEN]={0};
+   int count = 0;
+   int need = 0;
 
    assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO);
 
@@ -1644,6 +1649,18 @@ VkResult anv_CreateDevice(
    device->chipset_id = physical_device->chipset_id;
    device->no_hw = physical_device->no_hw;
    device->lost = false;
+   device->needwait = false;
+   sprintf(procPath,"/proc/%d/comm",getpid());
+   fp = fopen(procPath, "r");
+   if(fp != NULL) {
+      count = fread(procName, 1, sizeof(procName)-1, fp);
+      if(count > 0) {
+         procName[count-1] = '\0';
+         if(strcmp(procName, "org.skia.skqp") == 0 && !device->info.has_llc)
+            device->needwait= true;
+      }
+      fclose(fp);
+   }
 
    if (pAllocator)
       device->alloc = *pAllocator;
