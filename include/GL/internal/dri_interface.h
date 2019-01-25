@@ -1057,6 +1057,7 @@ enum dri_loader_cap {
     * only BGRA ordering can be exposed.
     */
    DRI_LOADER_CAP_RGBA_ORDERING,
+   DRI_LOADER_CAP_FP16,
 };
 
 struct __DRIdri2LoaderExtensionRec {
