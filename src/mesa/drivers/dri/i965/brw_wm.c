@@ -309,6 +309,7 @@ brw_populate_sampler_prog_key_data(struct gl_context *ctx,
       const int s = u_bit_scan(&mask);
 
       key->swizzles[s] = SWIZZLE_NOOP;
+      key->scale_factors[s] = 0.0f;
 
       int unit_id = prog->SamplerUnits[s];
       const struct gl_texture_unit *unit = &ctx->Texture.Unit[unit_id];
@@ -406,6 +407,10 @@ brw_populate_sampler_prog_key_data(struct gl_context *ctx,
          }
 
          if (t->Target == GL_TEXTURE_EXTERNAL_OES && intel_tex->planar_format) {
+
+            /* Setup possible scaling factor. */
+            key->scale_factors[s] = intel_tex->planar_format->scaling_factor;
+
             switch (intel_tex->planar_format->components) {
             case __DRI_IMAGE_COMPONENTS_Y_UV:
                key->y_uv_image_mask |= 1 << s;
