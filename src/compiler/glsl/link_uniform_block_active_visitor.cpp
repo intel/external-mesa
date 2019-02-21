@@ -111,40 +111,15 @@ process_arrays(void *mem_ctx, ir_dereference_array *ir,
          /* Index is a constant, so mark just that element used, if not
           * already.
           */
-         const unsigned idx = c->get_uint_component(0);
-
-         unsigned i;
-         for (i = 0; i < ub_array->num_array_elements; i++) {
-            if (ub_array->array_elements[i] == idx)
-               break;
-         }
-
-         assert(i <= ub_array->num_array_elements);
-
-         if (i == ub_array->num_array_elements) {
-            ub_array->array_elements = reralloc(mem_ctx,
-                                                ub_array->array_elements,
-                                                unsigned,
-                                                ub_array->num_array_elements + 1);
-
-            ub_array->array_elements[ub_array->num_array_elements] = idx;
-
-            ub_array->num_array_elements++;
-         }
+         ub_array->first_unused_array_element =
+                                       MAX2(c->get_uint_component(0) + 1,
+                                       ub_array->first_unused_array_element);
       } else {
          /* The array index is not a constant, so mark the entire array used. */
          assert(ir->array->type->is_array());
-         if (ub_array->num_array_elements < ir->array->type->length) {
-            ub_array->num_array_elements = ir->array->type->length;
-            ub_array->array_elements = reralloc(mem_ctx,
-                                                ub_array->array_elements,
-                                                unsigned,
-                                                ub_array->num_array_elements);
-
-            for (unsigned i = 0; i < ub_array->num_array_elements; i++) {
-               ub_array->array_elements[i] = i;
-            }
-         }
+         ub_array->first_unused_array_element =
+                                       MAX2(ir->array->type->length,
+                                       ub_array->first_unused_array_element);
       }
 
       return &ub_array->array;
@@ -194,15 +169,7 @@ link_uniform_block_active_visitor::visit(ir_variable *var)
       assert(b->type->length > 0);
 
       *ub_array = rzalloc(this->mem_ctx, struct uniform_block_array_elements);
-      (*ub_array)->num_array_elements = type->length;
-      (*ub_array)->array_elements = reralloc(this->mem_ctx,
-                                             (*ub_array)->array_elements,
-                                             unsigned,
-                                             (*ub_array)->num_array_elements);
-
-      for (unsigned i = 0; i < (*ub_array)->num_array_elements; i++) {
-         (*ub_array)->array_elements[i] = i;
-      }
+      (*ub_array)->first_unused_array_element = type->length;
       ub_array = &(*ub_array)->array;
       type = type->fields.array;
    }

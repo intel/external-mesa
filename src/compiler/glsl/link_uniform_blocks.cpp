@@ -241,12 +241,11 @@ process_block_array(struct uniform_block_array_elements *ub_array, char **name,
                     struct gl_context *ctx, struct gl_shader_program *prog,
                     unsigned first_index)
 {
-   for (unsigned j = 0; j < ub_array->num_array_elements; j++) {
+   for (unsigned j = 0; j < ub_array->first_unused_array_element; j++) {
       size_t new_length = name_length;
 
       /* Append the subscript to the current variable name */
-      ralloc_asprintf_rewrite_tail(name, &new_length, "[%u]",
-                                   ub_array->array_elements[j]);
+      ralloc_asprintf_rewrite_tail(name, &new_length, "[%u]", j);
 
       if (ub_array->array) {
          process_block_array(ub_array->array, name, new_length, blocks,
@@ -325,7 +324,7 @@ resize_block_array(const glsl_type *type,
 
       const glsl_type *new_type =
          glsl_type::get_array_instance(new_child_type,
-                                       ub_array->num_array_elements);
+                                       ub_array->first_unused_array_element);
       ub_array->ir->array->type = new_type;
       return new_type;
    } else {

@@ -28,8 +28,7 @@
 #include "util/hash_table.h"
 
 struct uniform_block_array_elements {
-   unsigned *array_elements;
-   unsigned num_array_elements;
+   unsigned first_unused_array_element;
 
    ir_dereference_array *ir;
 
