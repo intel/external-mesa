@@ -42,6 +42,18 @@ VULKAN_COMMON_INCLUDES := \
 	$(MESA_TOP)/src/compiler \
 	frameworks/native/vulkan/include
 
+ifeq ($(shell test $(PLATFORM_SDK_VERSION) -ge 27; echo $$?), 0)
+VULKAN_COMMON_INCLUDES += \
+	frameworks/native/vulkan/include \
+	frameworks/native/libs/nativebase/include \
+	frameworks/native/libs/nativewindow/include \
+	frameworks/native/libs/arect/include
+
+VULKAN_COMMON_HEADER_LIBRARIES := \
+	libcutils_headers \
+	libhardware_headers
+endif
+
 # libmesa_anv_entrypoints with header and dummy.c
 #
 # This static library is built to pull entrypoints header
@@ -120,6 +132,7 @@ LOCAL_C_INCLUDES := $(ANV_INCLUDES)
 LOCAL_WHOLE_STATIC_LIBRARIES := libmesa_anv_entrypoints libmesa_genxml
 
 LOCAL_SHARED_LIBRARIES := $(ANV_SHARED_LIBRARIES)
+LOCAL_HEADER_LIBRARIES += $(VULKAN_COMMON_HEADER_LIBRARIES)
 
 include $(MESA_COMMON_MK)
 include $(BUILD_STATIC_LIBRARY)
@@ -140,6 +153,7 @@ LOCAL_C_INCLUDES := $(ANV_INCLUDES)
 LOCAL_WHOLE_STATIC_LIBRARIES := libmesa_anv_entrypoints libmesa_genxml
 
 LOCAL_SHARED_LIBRARIES := $(ANV_SHARED_LIBRARIES)
+LOCAL_HEADER_LIBRARIES += $(VULKAN_COMMON_HEADER_LIBRARIES)
 
 include $(MESA_COMMON_MK)
 include $(BUILD_STATIC_LIBRARY)
@@ -160,6 +174,7 @@ LOCAL_C_INCLUDES := $(ANV_INCLUDES)
 LOCAL_WHOLE_STATIC_LIBRARIES := libmesa_anv_entrypoints libmesa_genxml
 
 LOCAL_SHARED_LIBRARIES := $(ANV_SHARED_LIBRARIES)
+LOCAL_HEADER_LIBRARIES += $(VULKAN_COMMON_HEADER_LIBRARIES)
 
 include $(MESA_COMMON_MK)
 include $(BUILD_STATIC_LIBRARY)
@@ -180,6 +195,7 @@ LOCAL_C_INCLUDES := $(ANV_INCLUDES)
 LOCAL_WHOLE_STATIC_LIBRARIES := libmesa_anv_entrypoints libmesa_genxml
 
 LOCAL_SHARED_LIBRARIES := $(ANV_SHARED_LIBRARIES)
+LOCAL_HEADER_LIBRARIES += $(VULKAN_COMMON_HEADER_LIBRARIES)
 
 include $(MESA_COMMON_MK)
 include $(BUILD_STATIC_LIBRARY)
@@ -200,6 +216,7 @@ LOCAL_C_INCLUDES := $(ANV_INCLUDES)
 LOCAL_WHOLE_STATIC_LIBRARIES := libmesa_anv_entrypoints libmesa_genxml
 
 LOCAL_SHARED_LIBRARIES := $(ANV_SHARED_LIBRARIES)
+LOCAL_HEADER_LIBRARIES += $(VULKAN_COMMON_HEADER_LIBRARIES)
 
 include $(MESA_COMMON_MK)
 include $(BUILD_STATIC_LIBRARY)
@@ -220,6 +237,7 @@ LOCAL_C_INCLUDES := $(ANV_INCLUDES)
 LOCAL_WHOLE_STATIC_LIBRARIES := libmesa_anv_entrypoints libmesa_genxml
 
 LOCAL_SHARED_LIBRARIES := $(ANV_SHARED_LIBRARIES)
+LOCAL_HEADER_LIBRARIES += $(VULKAN_COMMON_HEADER_LIBRARIES)
 
 include $(MESA_COMMON_MK)
 include $(BUILD_STATIC_LIBRARY)
@@ -271,6 +289,7 @@ $(intermediates)/vulkan/anv_extensions.c: $(ANV_EXTENSIONS_GEN_SCRIPT) \
 		--out-c $@
 
 LOCAL_SHARED_LIBRARIES := $(ANV_SHARED_LIBRARIES)
+LOCAL_HEADER_LIBRARIES += $(VULKAN_COMMON_HEADER_LIBRARIES)
 
 include $(MESA_COMMON_MK)
 include $(BUILD_STATIC_LIBRARY)
@@ -320,6 +339,7 @@ LOCAL_WHOLE_STATIC_LIBRARIES := \
 	libmesa_anv_entrypoints
 
 LOCAL_SHARED_LIBRARIES := $(ANV_SHARED_LIBRARIES) libexpat libz libsync liblog
+LOCAL_HEADER_LIBRARIES += $(VULKAN_COMMON_HEADER_LIBRARIES)
 
 include $(MESA_COMMON_MK)
 include $(BUILD_SHARED_LIBRARY)
