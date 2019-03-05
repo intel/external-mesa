@@ -244,18 +244,21 @@ process_block_array(struct uniform_block_array_elements *ub_array, char **name,
    for (unsigned j = 0; j < ub_array->num_array_elements; j++) {
       size_t new_length = name_length;
 
+      unsigned int element_idx = ub_array->array_elements[j];
       /* Append the subscript to the current variable name */
-      ralloc_asprintf_rewrite_tail(name, &new_length, "[%u]",
-                                   ub_array->array_elements[j]);
+      ralloc_asprintf_rewrite_tail(name, &new_length, "[%u]", element_idx);
 
       if (ub_array->array) {
+         unsigned boffset = (*binding_offset) + (element_idx *
+                             ub_array->original_dim_size);
          process_block_array(ub_array->array, name, new_length, blocks,
                              parcel, variables, b, block_index,
-                             binding_offset, ctx, prog, first_index);
+                             &boffset, ctx, prog, first_index);
       } else {
+         unsigned boffset = (*binding_offset) + element_idx;
          process_block_array_leaf(*name, blocks,
                                   parcel, variables, b, block_index,
-                                  binding_offset, *block_index - first_index,
+                                  &boffset, *block_index - first_index,
                                   ctx, prog);
       }
    }
@@ -307,7 +310,6 @@ process_block_array_leaf(const char *name,
       (unsigned)(ptrdiff_t)(&variables[parcel->index] - blocks[i].Uniforms);
 
    *block_index = *block_index + 1;
-   *binding_offset = *binding_offset + 1;
 }
 
 /* This function resizes the array types of the block so that later we can use

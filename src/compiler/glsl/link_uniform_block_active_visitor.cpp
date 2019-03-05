@@ -103,6 +103,7 @@ process_arrays(void *mem_ctx, ir_dereference_array *ir,
       if (*ub_array_ptr == NULL) {
          *ub_array_ptr = rzalloc(mem_ctx, struct uniform_block_array_elements);
          (*ub_array_ptr)->ir = ir;
+         (*ub_array_ptr)->original_dim_size = block->type->length;
       }
 
       struct uniform_block_array_elements *ub_array = *ub_array_ptr;
