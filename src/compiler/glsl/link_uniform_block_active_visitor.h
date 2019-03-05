@@ -32,6 +32,7 @@ struct uniform_block_array_elements {
    unsigned num_array_elements;
 
    ir_dereference_array *ir;
+   unsigned original_dim_size;
 
    struct uniform_block_array_elements *array;
 };
