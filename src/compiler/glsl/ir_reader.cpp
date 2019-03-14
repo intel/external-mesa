@@ -420,7 +420,8 @@ ir_reader::read_declaration(s_expression *expr)
       } else if (strcmp(qualifier->value(), "patch") == 0) {
          var->data.patch = 1;
       } else if (strcmp(qualifier->value(), "invariant") == 0) {
-	 var->data.invariant = 1;
+        var->data.explicit_invariant = true;
+        var->data.invariant = true;
       } else if (strcmp(qualifier->value(), "uniform") == 0) {
 	 var->data.mode = ir_var_uniform;
       } else if (strcmp(qualifier->value(), "shader_storage") == 0) {
