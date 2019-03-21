@@ -247,24 +247,13 @@ VkResult anv_GetSwapchainGrallocUsageANDROID(
     * dEQP-VK.wsi.android.swapchain.*.image_usage to fail.
     */
 
-   VkPhysicalDeviceImageFormatInfo2KHR image_format_info = {
+   const VkPhysicalDeviceImageFormatInfo2KHR image_format_info = {
       .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_FORMAT_INFO_2_KHR,
       .format = format,
       .type = VK_IMAGE_TYPE_2D,
       .tiling = VK_IMAGE_TILING_OPTIMAL,
       .usage = imageUsage,
    };
-
-   /* Android P and earlier doesn't check if the physical device supports a
-    * given format and usage combination before calling this function. Omit the
-    * storage requirement to make the tests pass.
-    */
-#if ANDROID_API_LEVEL <= 28
-   if (format == VK_FORMAT_R8G8B8A8_SRGB ||
-       format == VK_FORMAT_R5G6B5_UNORM_PACK16) {
-      image_format_info.usage &= ~VK_IMAGE_USAGE_STORAGE_BIT;
-   }
-#endif
 
    VkImageFormatProperties2KHR image_format_props = {
       .sType = VK_STRUCTURE_TYPE_IMAGE_FORMAT_PROPERTIES_2_KHR,
