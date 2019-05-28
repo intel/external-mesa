@@ -742,11 +742,18 @@ submit_batch(struct brw_context *brw, int in_fence_fd, int *out_fence_fd)
    int ret = 0;
 
    if (batch->use_shadow_copy) {
-      void *bo_map = brw_bo_map(brw, batch->batch.bo, MAP_WRITE);
-      memcpy(bo_map, batch->batch.map, 4 * USED_BATCH(*batch));
+      void *state_map, *batch_map = brw_bo_map(brw, batch->batch.bo, MAP_WRITE);
+      if(batch_map == NULL)
+        return -1;
 
-      bo_map = brw_bo_map(brw, batch->state.bo, MAP_WRITE);
-      memcpy(bo_map, batch->state.map, batch->state_used);
+      state_map = brw_bo_map(brw, batch->state.bo, MAP_WRITE);
+      if (state_map == NULL) {
+        brw_bo_unmap(batch->batch.bo);
+        return -1;
+      }
+
+      memcpy(batch_map, batch->batch.map, 4 * USED_BATCH(*batch));
+      memcpy(state_map, batch->state.map, batch->state_used);
    }
 
    brw_bo_unmap(batch->batch.bo);
