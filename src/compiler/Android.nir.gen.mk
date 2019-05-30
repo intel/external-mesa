@@ -28,6 +28,7 @@ LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 endif
 
 intermediates := $(call local-generated-sources-dir)
+prebuilt_intermediates := $(MESA_TOP)/prebuilt-intermediates
 
 LOCAL_SRC_FILES := $(LOCAL_SRC_FILES)
 
@@ -54,27 +55,36 @@ nir_builder_opcodes_deps := \
 	$(LOCAL_PATH)/nir/nir_opcodes.py \
 	$(LOCAL_PATH)/nir/nir_builder_opcodes_h.py
 
-$(intermediates)/nir/nir_builder_opcodes.h: $(nir_builder_opcodes_deps)
+#$(intermediates)/nir/nir_builder_opcodes.h: $(nir_builder_opcodes_deps)
+#	@mkdir -p $(dir $@)
+#	$(hide) $(MESA_PYTHON2) $(nir_builder_opcodes_gen) $< > $@
+$(intermediates)/nir/nir_builder_opcodes.h: $(prebuilt_intermediates)/nir/nir_builder_opcodes.h
 	@mkdir -p $(dir $@)
-	$(hide) $(MESA_PYTHON2) $(nir_builder_opcodes_gen) $< > $@
+	@cp -f $< $@
 
 nir_constant_expressions_gen := $(LOCAL_PATH)/nir/nir_constant_expressions.py
 nir_constant_expressions_deps := \
 	$(LOCAL_PATH)/nir/nir_opcodes.py \
 	$(LOCAL_PATH)/nir/nir_constant_expressions.py
 
-$(intermediates)/nir/nir_constant_expressions.c: $(nir_constant_expressions_deps)
+#$(intermediates)/nir/nir_constant_expressions.c: $(nir_constant_expressions_deps)
+#	@mkdir -p $(dir $@)
+#	$(hide) $(MESA_PYTHON2) $(nir_constant_expressions_gen) $< > $@
+$(intermediates)/nir/nir_constant_expressions.c: $(prebuilt_intermediates)/nir/nir_constant_expressions.c
 	@mkdir -p $(dir $@)
-	$(hide) $(MESA_PYTHON2) $(nir_constant_expressions_gen) $< > $@
+	@cp -f $< $@
 
 nir_opcodes_h_gen := $(LOCAL_PATH)/nir/nir_opcodes_h.py
 nir_opcodes_h_deps := \
 	$(LOCAL_PATH)/nir/nir_opcodes.py \
 	$(LOCAL_PATH)/nir/nir_opcodes_h.py
 
-$(intermediates)/nir/nir_opcodes.h: $(nir_opcodes_h_deps)
+#$(intermediates)/nir/nir_opcodes.h: $(nir_opcodes_h_deps)
+#	@mkdir -p $(dir $@)
+#	$(hide) $(MESA_PYTHON2) $(nir_opcodes_h_gen) $< > $@
+$(intermediates)/nir/nir_opcodes.h: $(prebuilt_intermediates)/nir/nir_opcodes.h
 	@mkdir -p $(dir $@)
-	$(hide) $(MESA_PYTHON2) $(nir_opcodes_h_gen) $< > $@
+	@cp -f $< $@
 
 $(LOCAL_PATH)/nir/nir.h: $(intermediates)/nir/nir_opcodes.h
 
@@ -83,33 +93,51 @@ nir_opcodes_c_deps := \
 	$(LOCAL_PATH)/nir/nir_opcodes.py \
 	$(LOCAL_PATH)/nir/nir_opcodes_c.py
 
-$(intermediates)/nir/nir_opcodes.c: $(nir_opcodes_c_deps)
+#$(intermediates)/nir/nir_opcodes.c: $(nir_opcodes_c_deps)
+#	@mkdir -p $(dir $@)
+#	$(hide) $(MESA_PYTHON2) $(nir_opcodes_c_gen) $< > $@
+$(intermediates)/nir/nir_opcodes.c: $(prebuilt_intermediates)/nir/nir_opcodes.c
 	@mkdir -p $(dir $@)
-	$(hide) $(MESA_PYTHON2) $(nir_opcodes_c_gen) $< > $@
+	@cp -f $< $@
 
 nir_opt_algebraic_gen := $(LOCAL_PATH)/nir/nir_opt_algebraic.py
 nir_opt_algebraic_deps := \
 	$(LOCAL_PATH)/nir/nir_opt_algebraic.py \
 	$(LOCAL_PATH)/nir/nir_algebraic.py
 
-$(intermediates)/nir/nir_opt_algebraic.c: $(nir_opt_algebraic_deps)
-	@mkdir -p $(dir $@)
-	$(hide) $(MESA_PYTHON2) $(nir_opt_algebraic_gen) $< > $@
+#$(intermediates)/nir/nir_opt_algebraic.c: $(nir_opt_algebraic_deps)
+#	@mkdir -p $(dir $@)
+#	$(hide) $(MESA_PYTHON2) $(nir_opt_algebraic_gen) $< > $@
+$(intermediates)/nir/nir_opt_algebraic.c: $(prebuilt_intermediates)/nir/nir_opt_algebraic.c
+		@mkdir -p $(dir $@)
+		@cp -f $< $@
 
-$(intermediates)/spirv/spirv_info.c: $(LOCAL_PATH)/spirv/spirv_info_c.py $(LOCAL_PATH)/spirv/spirv.core.grammar.json
+#$(intermediates)/spirv/spirv_info.c: $(LOCAL_PATH)/spirv/spirv_info_c.py $(LOCAL_PATH)/spirv/spirv.core.grammar.json
+#	@mkdir -p $(dir $@)
+#	$(hide) $(MESA_PYTHON2) $^ $@ || ($(RM) $@; false)
+$(intermediates)/spirv/spirv_info.c: $(prebuilt_intermediates)/spirv/spirv_info.c
 	@mkdir -p $(dir $@)
-	$(hide) $(MESA_PYTHON2) $^ $@ || ($(RM) $@; false)
+	@cp -f $< $@
 
-$(intermediates)/spirv/vtn_gather_types.c:: $(LOCAL_PATH)/spirv/vtn_gather_types_c.py $(LOCAL_PATH)/spirv/spirv.core.grammar.json
+#$(intermediates)/spirv/vtn_gather_types.c:: $(LOCAL_PATH)/spirv/vtn_gather_types_c.py $(LOCAL_PATH)/spirv/spirv.core.grammar.json
+#	@mkdir -p $(dir $@)
+#	$(hide) $(MESA_PYTHON2) $^ $@ || ($(RM) $@; false)
+$(intermediates)/spirv/vtn_gather_types.c: $(prebuilt_intermediates)/spirv/vtn_gather_types.c
 	@mkdir -p $(dir $@)
-	$(hide) $(MESA_PYTHON2) $^ $@ || ($(RM) $@; false)
+	@cp -f $< $@
 
-nir_intrinsics_h_gen := $(LOCAL_PATH)/nir/nir_intrinsics_h.py
-$(intermediates)/nir/nir_intrinsics.h: $(LOCAL_PATH)/nir/nir_intrinsics.py $(nir_intrinsics_h_gen)
+#nir_intrinsics_h_gen := $(LOCAL_PATH)/nir/nir_intrinsics_h.py
+#$(intermediates)/nir/nir_intrinsics.h: $(LOCAL_PATH)/nir/nir_intrinsics.py $(nir_intrinsics_h_gen)
+#	@mkdir -p $(dir $@)
+#	$(hide) $(MESA_PYTHON2) $(nir_intrinsics_h_gen) --outdir $(dir $@) || ($(RM) $@; false)
+$(intermediates)/nir/nir_intrinsics.h: $(prebuilt_intermediates)/nir/nir_intrinsics.h
 	@mkdir -p $(dir $@)
-	$(hide) $(MESA_PYTHON2) $(nir_intrinsics_h_gen) --outdir $(dir $@) || ($(RM) $@; false)
+	@cp -f $< $@
 
-nir_intrinsics_c_gen := $(LOCAL_PATH)/nir/nir_intrinsics_c.py
-$(intermediates)/nir/nir_intrinsics.c: $(LOCAL_PATH)/nir/nir_intrinsics.py $(nir_intrinsics_c_gen)
+#nir_intrinsics_c_gen := $(LOCAL_PATH)/nir/nir_intrinsics_c.py
+#$(intermediates)/nir/nir_intrinsics.c: $(LOCAL_PATH)/nir/nir_intrinsics.py $(nir_intrinsics_c_gen)
+#	@mkdir -p $(dir $@)
+#	$(hide) $(MESA_PYTHON2) $(nir_intrinsics_c_gen) --outdir $(dir $@) || ($(RM) $@; false)
+$(intermediates)/nir/nir_intrinsics.c: $(prebuilt_intermediates)/nir/nir_intrinsics.c
 	@mkdir -p $(dir $@)
-	$(hide) $(MESA_PYTHON2) $(nir_intrinsics_c_gen) --outdir $(dir $@) || ($(RM) $@; false)
+	@cp -f $< $@

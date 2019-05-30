@@ -51,10 +51,14 @@ brw_nir_trig_workarounds_deps := \
 	$(MESA_TOP)/src/compiler/nir/nir_algebraic.py
 
 intermediates := $(call local-generated-sources-dir)
+prebuilt_intermediates := $(MESA_TOP)/prebuilt-intermediates
 
-$(intermediates)/compiler/brw_nir_trig_workarounds.c: $(brw_nir_trig_workarounds_deps)
-	@mkdir -p $(dir $@)
-	$(hide) $(MESA_PYTHON2) $< -p $(MESA_TOP)/src/compiler/nir > $@
+#$(intermediates)/compiler/brw_nir_trig_workarounds.c: $(brw_nir_trig_workarounds_deps)
+#	@mkdir -p $(dir $@)
+#	$(hide) $(MESA_PYTHON2) $< -p $(MESA_TOP)/src/compiler/nir > $@
+$(intermediates)/compiler/brw_nir_trig_workarounds.c: $(prebuilt_intermediates)/compiler/brw_nir_trig_workarounds.c
+		@mkdir -p $(dir $@)
+		@cp -f $< $@
 
 LOCAL_STATIC_LIBRARIES = libmesa_genxml
 

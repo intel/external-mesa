@@ -31,6 +31,7 @@ LOCAL_MODULE := libmesa_genxml
 LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 
 intermediates := $(call local-generated-sources-dir)
+prebuilt_intermediates := $(MESA_TOP)/prebuilt-intermediates
 
 # dummy.c source file is generated to meet the build system's rules.
 LOCAL_GENERATED_SOURCES += $(intermediates)/dummy.c
@@ -49,12 +50,15 @@ define header-gen
 	$(hide) $(PRIVATE_SCRIPT) $(PRIVATE_SCRIPT_FLAGS) $(PRIVATE_XML) > $@
 endef
 
-$(intermediates)/genxml/genX_bits.h: PRIVATE_SCRIPT := $(MESA_PYTHON2) $(LOCAL_PATH)/genxml/gen_bits_header.py
-$(intermediates)/genxml/genX_bits.h: PRIVATE_SCRIPT_FLAGS := --cpp-guard=GENX_BITS_H
-$(intermediates)/genxml/genX_bits.h: PRIVATE_XML := $(addprefix $(LOCAL_PATH)/,$(GENXML_XML_FILES))
-$(intermediates)/genxml/genX_bits.h: $(LOCAL_PATH)/genxml/gen_bits_header.py
-$(intermediates)/genxml/genX_bits.h: $(addprefix $(LOCAL_PATH)/,$(GENXML_XML_FILES))
-	$(call header-gen)
+#$(intermediates)/genxml/genX_bits.h: PRIVATE_SCRIPT := $(MESA_PYTHON2) $(LOCAL_PATH)/genxml/gen_bits_header.py
+#$(intermediates)/genxml/genX_bits.h: PRIVATE_SCRIPT_FLAGS := --cpp-guard=GENX_BITS_H
+#$(intermediates)/genxml/genX_bits.h: PRIVATE_XML := $(addprefix $(LOCAL_PATH)/,$(GENXML_XML_FILES))
+#$(intermediates)/genxml/genX_bits.h: $(LOCAL_PATH)/genxml/gen_bits_header.py
+#$(intermediates)/genxml/genX_bits.h: $(addprefix $(LOCAL_PATH)/,$(GENXML_XML_FILES))
+#	$(call header-gen)
+$(intermediates)/genxml/genX_bits.h: $(prebuilt_intermediates)/genxml/genX_bits.h
+		@mkdir -p $(dir $@)
+		@cp -f $< $@
 
 $(intermediates)/genxml/gen4_pack.h: PRIVATE_SCRIPT := $(MESA_PYTHON2) $(LOCAL_PATH)/genxml/gen_pack_header.py
 $(intermediates)/genxml/gen4_pack.h: PRIVATE_XML := $(LOCAL_PATH)/genxml/gen4.xml
@@ -106,10 +110,13 @@ $(intermediates)/genxml/gen11_pack.h: PRIVATE_XML := $(LOCAL_PATH)/genxml/gen11.
 $(intermediates)/genxml/gen11_pack.h: $(LOCAL_PATH)/genxml/gen11.xml $(LOCAL_PATH)/genxml/gen_pack_header.py
 	$(call header-gen)
 
-$(intermediates)/genxml/genX_xml.h: $(addprefix $(MESA_TOP)/src/intel/,$(GENXML_XML_FILES)) $(MESA_TOP)/src/intel/genxml/gen_zipped_file.py
-	@mkdir -p $(dir $@)
-	@echo "Gen Header: $(PRIVATE_MODULE) <= $(notdir $(@))"
-	$(hide) $(MESA_PYTHON2) $(MESA_TOP)/src/intel/genxml/gen_zipped_file.py $(addprefix $(MESA_TOP)/src/intel/,$(GENXML_XML_FILES)) > $@ || (rm -f $@; false)
+#$(intermediates)/genxml/genX_xml.h: $(addprefix $(MESA_TOP)/src/intel/,$(GENXML_XML_FILES)) $(MESA_TOP)/src/intel/genxml/gen_zipped_file.py
+#	@mkdir -p $(dir $@)
+#	@echo "Gen Header: $(PRIVATE_MODULE) <= $(notdir $(@))"
+#	$(hide) $(MESA_PYTHON2) $(MESA_TOP)/src/intel/genxml/gen_zipped_file.py $(addprefix $(MESA_TOP)/src/intel/,$(GENXML_XML_FILES)) > $@ || (rm -f $@; false)
+$(intermediates)/genxml/genX_xml.h: $(prebuilt_intermediates)/genxml/genX_xml.h
+		@mkdir -p $(dir $@)
+		@cp -f $< $@
 
 LOCAL_EXPORT_C_INCLUDE_DIRS := \
 	$(MESA_TOP)/src/intel \

@@ -28,6 +28,7 @@ LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 endif
 
 intermediates := $(call local-generated-sources-dir)
+prebuilt_intermediates := $(MESA_TOP)/prebuilt-intermediates
 
 # This is the list of auto-generated files: sources and headers
 sources := \
@@ -75,7 +76,7 @@ matypes_deps := \
 	$(LOCAL_PATH)/main/mtypes.h \
 	$(LOCAL_PATH)/tnl/t_context.h
 
-$(intermediates)/x86/matypes.h: $(matypes_deps) 
+$(intermediates)/x86/matypes.h: $(matypes_deps)
 	@mkdir -p $(dir $@)
 	@echo "MATYPES: $(PRIVATE_MODULE) <= $(notdir $@)"
 	$(hide) $< > $@
@@ -130,10 +131,13 @@ format_fallback_deps := \
 	$(LOCAL_PATH)/main/format_parser.py \
 	$(FORMAT_FALLBACK)
 
-$(intermediates)/main/format_fallback.c: PRIVATE_SCRIPT := $(MESA_PYTHON2) $(FORMAT_FALLBACK)
-$(intermediates)/main/format_fallback.c: PRIVATE_XML :=
-$(intermediates)/main/format_fallback.c: $(format_fallback_deps)
-	$(call es-gen, $< /dev/stdout)
+#$(intermediates)/main/format_fallback.c: PRIVATE_SCRIPT := $(MESA_PYTHON2) $(FORMAT_FALLBACK)
+#$(intermediates)/main/format_fallback.c: PRIVATE_XML :=
+#$(intermediates)/main/format_fallback.c: $(format_fallback_deps)
+#	$(call es-gen, $< /dev/stdout)
+$(intermediates)/main/format_fallback.c: $(prebuilt_intermediates)/main/format_fallback.c
+		@mkdir -p $(dir $@)
+		@cp -f $< $@
 
 FORMAT_INFO := $(LOCAL_PATH)/main/format_info.py
 format_info_deps := \
@@ -152,10 +156,13 @@ format_pack_deps := \
 	$(LOCAL_PATH)/main/format_parser.py \
 	$(FORMAT_PACK)
 
-$(intermediates)/main/format_pack.c: PRIVATE_SCRIPT := $(MESA_PYTHON2) $(FORMAT_PACK)
-$(intermediates)/main/format_pack.c: PRIVATE_XML :=
-$(intermediates)/main/format_pack.c: $(format_pack_deps)
-	$(call es-gen, $<)
+#$(intermediates)/main/format_pack.c: PRIVATE_SCRIPT := $(MESA_PYTHON2) $(FORMAT_PACK)
+#$(intermediates)/main/format_pack.c: PRIVATE_XML :=
+#$(intermediates)/main/format_pack.c: $(format_pack_deps)
+#	$(call es-gen, $<)
+$(intermediates)/main/format_pack.c: $(prebuilt_intermediates)/main/format_pack.c
+		@mkdir -p $(dir $@)
+		@cp -f $< $@
 
 FORMAT_UNPACK := $(LOCAL_PATH)/main/format_unpack.py
 format_unpack_deps := \
@@ -163,7 +170,10 @@ format_unpack_deps := \
 	$(LOCAL_PATH)/main/format_parser.py \
 	$(FORMAT_UNPACK)
 
-$(intermediates)/main/format_unpack.c: PRIVATE_SCRIPT := $(MESA_PYTHON2) $(FORMAT_UNPACK)
-$(intermediates)/main/format_unpack.c: PRIVATE_XML :=
-$(intermediates)/main/format_unpack.c: $(format_unpack_deps)
-	$(call es-gen, $<)
+#$(intermediates)/main/format_unpack.c: PRIVATE_SCRIPT := $(MESA_PYTHON2) $(FORMAT_UNPACK)
+#$(intermediates)/main/format_unpack.c: PRIVATE_XML :=
+#$(intermediates)/main/format_unpack.c: $(format_unpack_deps)
+#	$(call es-gen, $<)
+$(intermediates)/main/format_unpack.c: $(prebuilt_intermediates)/main/format_unpack.c
+		@mkdir -p $(dir $@)
+		@cp -f $< $@
