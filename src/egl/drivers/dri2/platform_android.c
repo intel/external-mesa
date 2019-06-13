@@ -64,6 +64,14 @@ struct droid_yuv_format {
    int fourcc; /* __DRI_IMAGE_FOURCC_ */
 };
 
+/* This enumeration can be deleted if Android defined it in
+ * system/core/include/system/graphics.h
+ */
+enum {
+   HAL_PIXEL_FORMAT_NV12_Y_TILED_INTEL = 0x100,
+   HAL_PIXEL_FORMAT_NV12 = 0x10F,
+};
+
 /* The following table is used to look up a DRI image FourCC based
  * on native format and information contained in android_ycbcr struct. */
 static const struct droid_yuv_format droid_yuv_formats[] = {
@@ -72,6 +80,8 @@ static const struct droid_yuv_format droid_yuv_formats[] = {
    { HAL_PIXEL_FORMAT_YCbCr_420_888, YCbCr, 1, __DRI_IMAGE_FOURCC_YUV420 },
    { HAL_PIXEL_FORMAT_YCbCr_420_888, YCrCb, 1, __DRI_IMAGE_FOURCC_YVU420 },
    { HAL_PIXEL_FORMAT_YV12,          YCrCb, 1, __DRI_IMAGE_FOURCC_YVU420 },
+   { HAL_PIXEL_FORMAT_NV12,            YCbCr, 2, __DRI_IMAGE_FOURCC_NV12 },
+   { HAL_PIXEL_FORMAT_NV12_Y_TILED_INTEL, YCbCr, 2, __DRI_IMAGE_FOURCC_NV12 },
    /* HACK: See droid_create_image_from_prime_fd() and
     * https://issuetracker.google.com/32077885. */
    { HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED, YCbCr, 2, __DRI_IMAGE_FOURCC_NV12 },
