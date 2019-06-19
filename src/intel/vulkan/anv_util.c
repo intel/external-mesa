@@ -76,6 +76,77 @@ __anv_perf_warn(struct anv_instance *instance, const void *object,
    intel_logw("%s:%d: PERF: %s", file, line, buffer);
 }
 
+const char *
+vk_Result_to_str_pri(VkResult input)
+{
+    switch(input) {
+        case -1000244000:
+            return "VK_ERROR_INVALID_DEVICE_ADDRESS_EXT";
+        case -1000174001:
+            return "VK_ERROR_NOT_PERMITTED_EXT";
+        case -1000161000:
+            return "VK_ERROR_FRAGMENTATION_EXT";
+        case -1000158000:
+            return "VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT";
+        case -1000072003:
+            return "VK_ERROR_INVALID_EXTERNAL_HANDLE";
+        case -1000069000:
+            return "VK_ERROR_OUT_OF_POOL_MEMORY";
+        case -1000012000:
+            return "VK_ERROR_INVALID_SHADER_NV";
+        case -1000011001:
+            return "VK_ERROR_VALIDATION_FAILED_EXT";
+        case -1000003001:
+            return "VK_ERROR_INCOMPATIBLE_DISPLAY_KHR";
+        case -1000001004:
+            return "VK_ERROR_OUT_OF_DATE_KHR";
+        case -1000000001:
+            return "VK_ERROR_NATIVE_WINDOW_IN_USE_KHR";
+        case -1000000000:
+            return "VK_ERROR_SURFACE_LOST_KHR";
+        case -12:
+            return "VK_ERROR_FRAGMENTED_POOL";
+        case -11:
+            return "VK_ERROR_FORMAT_NOT_SUPPORTED";
+        case -10:
+            return "VK_ERROR_TOO_MANY_OBJECTS";
+        case -9:
+            return "VK_ERROR_INCOMPATIBLE_DRIVER";
+        case -8:
+            return "VK_ERROR_FEATURE_NOT_PRESENT";
+        case -7:
+            return "VK_ERROR_EXTENSION_NOT_PRESENT";
+        case -6:
+            return "VK_ERROR_LAYER_NOT_PRESENT";
+        case -5:
+            return "VK_ERROR_MEMORY_MAP_FAILED";
+        case -4:
+            return "VK_ERROR_DEVICE_LOST";
+        case -3:
+            return "VK_ERROR_INITIALIZATION_FAILED";
+        case -2:
+            return "VK_ERROR_OUT_OF_DEVICE_MEMORY";
+        case -1:
+            return "VK_ERROR_OUT_OF_HOST_MEMORY";
+        case 0:
+            return "VK_SUCCESS";
+        case 1:
+            return "VK_NOT_READY";
+        case 2:
+            return "VK_TIMEOUT";
+        case 3:
+            return "VK_EVENT_SET";
+        case 4:
+            return "VK_EVENT_RESET";
+        case 5:
+            return "VK_INCOMPLETE";
+        case 1000001003:
+            return "VK_SUBOPTIMAL_KHR";
+    default:
+        unreachable("Undefined enum value.");
+    }
+}
+
 VkResult
 __vk_errorv(struct anv_instance *instance, const void *object,
             VkDebugReportObjectTypeEXT type, VkResult error,
@@ -84,7 +155,7 @@ __vk_errorv(struct anv_instance *instance, const void *object,
    char buffer[256];
    char report[512];
 
-   const char *error_str = vk_Result_to_str(error);
+   const char *error_str = vk_Result_to_str_pri(error);
 
    if (format) {
       vsnprintf(buffer, sizeof(buffer), format, ap);
