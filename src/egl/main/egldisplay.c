@@ -238,7 +238,7 @@ _eglFindDisplay(_EGLPlatformType plat, void *plat_dpy)
          dpy->Platform = plat;
          dpy->PlatformDisplay = plat_dpy;
 
-         /* add to the display list */ 
+         /* add to the display list */
          dpy->Next = _eglGlobal.DisplayList;
          _eglGlobal.DisplayList = dpy;
       }
@@ -344,7 +344,7 @@ EGLBoolean
 _eglCheckResource(void *res, _EGLResourceType type, _EGLDisplay *dpy)
 {
    _EGLResource *list = dpy->ResourceLists[type];
-   
+
    if (!res)
       return EGL_FALSE;
 
@@ -542,3 +542,23 @@ _eglGetSurfacelessDisplay(void *native_display,
    return _eglFindDisplay(_EGL_PLATFORM_SURFACELESS, native_display);
 }
 #endif /* HAVE_SURFACELESS_PLATFORM */
+#ifdef HAVE_ANDROID_PLATFORM
+_EGLDisplay*
+_eglGetAndroidDisplay(void *native_display,
+                          const EGLAttrib *attrib_list)
+{
+   /* This platform has no native display. */
+   if (native_display != NULL) {
+      _eglError(EGL_BAD_PARAMETER, "eglGetPlatformDisplay");
+      return NULL;
+   }
+
+   /* This platform recognizes no display attributes. */
+   if (attrib_list != NULL && attrib_list[0] != EGL_NONE) {
+      _eglError(EGL_BAD_ATTRIBUTE, "eglGetPlatformDisplay");
+      return NULL;
+   }
+
+  return _eglFindDisplay(_EGL_PLATFORM_ANDROID, native_display);
+}
+#endif

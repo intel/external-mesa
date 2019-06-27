@@ -406,6 +406,11 @@ _eglGetPlatformDisplayCommon(EGLenum platform, void *native_display,
       dpy = _eglGetSurfacelessDisplay(native_display, attrib_list);
       break;
 #endif
+#ifdef HAVE_ANDROID_PLATFORM
+   case EGL_PLATFORM_ANDROID_KHR:
+      dpy = _eglGetAndroidDisplay(native_display, attrib_list);
+      break;
+#endif
    default:
       RETURN_EGL_ERROR(NULL, EGL_BAD_PARAMETER, NULL);
    }
