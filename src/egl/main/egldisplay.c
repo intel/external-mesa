@@ -542,3 +542,19 @@ _eglGetSurfacelessDisplay(void *native_display,
    return _eglFindDisplay(_EGL_PLATFORM_SURFACELESS, native_display);
 }
 #endif /* HAVE_SURFACELESS_PLATFORM */
+
+#ifdef HAVE_ANDROID_PLATFORM
+_EGLDisplay*
+_eglGetAndroidDisplay(void *native_display,
+                          const EGLAttrib *attrib_list)
+{
+
+   /* This platform recognizes no display attributes. */
+   if (attrib_list != NULL && attrib_list[0] != EGL_NONE) {
+      _eglError(EGL_BAD_ATTRIBUTE, "eglGetPlatformDisplay");
+      return NULL;
+   }
+
+   return _eglFindDisplay(_EGL_PLATFORM_ANDROID, native_display);
+}
+#endif /* HAVE_ANDROID_PLATFORM */
