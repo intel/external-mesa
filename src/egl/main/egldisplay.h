@@ -301,6 +301,12 @@ _eglGetSurfacelessDisplay(void *native_display,
                           const EGLAttrib *attrib_list);
 #endif
 
+#ifdef HAVE_ANDROID_PLATFORM
+_EGLDisplay*
+_eglGetAndroidDisplay(void *native_display,
+                         const EGLAttrib *attrib_list);
+#endif
+
 #ifdef __cplusplus
 }
 #endif
