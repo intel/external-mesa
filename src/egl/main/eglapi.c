@@ -408,7 +408,7 @@ _eglGetPlatformDisplayCommon(EGLenum platform, void *native_display,
 #endif
 #ifdef HAVE_ANDROID_PLATFORM
    case EGL_PLATFORM_ANDROID_KHR:
-      disp = _eglGetAndroidDisplay(native_display, attrib_list);
+      dpy = _eglGetAndroidDisplay(native_display, attrib_list);
       break;
 #endif
    default:
