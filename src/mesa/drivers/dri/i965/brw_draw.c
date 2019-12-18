@@ -1189,6 +1189,51 @@ brw_draw_prims(struct gl_context *ctx,
    brw->predicate.state = predicate_state;
 }
 
+#define MAX_PATCH_PER_DRAW 2
+
+static void
+brw_draw_prims_patch(struct gl_context *ctx,
+               const struct _mesa_prim *prims,
+               GLuint nr_prims,
+               const struct _mesa_index_buffer *ib,
+               GLboolean index_bounds_valid,
+               GLuint min_index,
+               GLuint max_index,
+               struct gl_transform_feedback_object *gl_xfb_obj,
+               unsigned stream,
+               struct gl_buffer_object *indirect) {
+
+   if (ctx != NULL && nr_prims == 1 && prims != NULL && prims->mode == GL_PATCHES && ib != NULL) {
+      struct _mesa_index_buffer ib_loop;
+      GLint patch_vertices = ctx->TessCtrlProgram.patch_vertices;
+      ib_loop = *ib;
+      GLuint count = ib->count;
+      unsigned index_size = ib->index_size;
+      struct gl_buffer_object *obj = ib->obj;
+      void *ptr = ib->ptr;
+      GLuint startindx = 0;
+      while (count > MAX_PATCH_PER_DRAW * patch_vertices) {
+         struct _mesa_index_buffer ib_new;
+         struct _mesa_prim prims_new;
+         ib_new.index_size = index_size;
+         ib_new.obj = obj;
+         ib_new.count = patch_vertices * MAX_PATCH_PER_DRAW;
+         ib_new.ptr = ptr + startindx * index_size;
+         prims_new = *prims;
+         prims_new.count = patch_vertices * MAX_PATCH_PER_DRAW;
+         brw_draw_prims(ctx, &prims_new, nr_prims,
+                        &ib_new, index_bounds_valid, min_index, max_index,
+                        gl_xfb_obj, stream, indirect);
+         startindx += MAX_PATCH_PER_DRAW * patch_vertices;
+         count -= MAX_PATCH_PER_DRAW * patch_vertices;
+      }
+   } else {
+      brw_draw_prims(ctx, prims, nr_prims,
+                     ib, index_bounds_valid, min_index, max_index,
+                     gl_xfb_obj, stream, indirect);
+   }
+}
+
 void
 brw_draw_indirect_prims(struct gl_context *ctx,
                         GLuint mode,
@@ -1230,7 +1275,7 @@ brw_draw_indirect_prims(struct gl_context *ctx,
       brw->draw.draw_params_count_offset = indirect_params_offset;
    }
 
-   brw_draw_prims(ctx, prim, draw_count,
+   brw_draw_prims_patch(ctx, prim, draw_count,
                   ib, false, 0, ~0,
                   NULL, 0,
                   indirect_data);
@@ -1243,7 +1288,7 @@ brw_init_draw_functions(struct dd_function_table *functions)
 {
    /* Register our drawing function:
     */
-   functions->Draw = brw_draw_prims;
+   functions->Draw = brw_draw_prims_patch;
    functions->DrawIndirect = brw_draw_indirect_prims;
 }
 
