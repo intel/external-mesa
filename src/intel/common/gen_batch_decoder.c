@@ -812,6 +812,16 @@ gen_print_batch(struct gen_batch_decode_ctx *ctx,
    struct gen_group *inst;
    const char *reset_color = ctx->flags & GEN_BATCH_DECODE_IN_COLOR ? NORMAL : "";
 
+#ifdef __ANDROID__
+   fprintf(ctx->fp, "batch buffer begin size:%u\n", batch_size);
+   for (p = batch; p < end; p += 8)
+   {
+      fprintf(ctx->fp, "%08x %08x %08x %08x %08x %08x %08x %08x\n",
+              p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]);
+   }
+   fprintf(ctx->fp, "batch buffer end\n");
+#endif
+
    if (ctx->n_batch_buffer_start >= 100) {
       fprintf(ctx->fp, "%s0x%08"PRIx64": Max batch buffer jumps exceeded%s\n",
               (ctx->flags & GEN_BATCH_DECODE_IN_COLOR) ? RED_COLOR : "",

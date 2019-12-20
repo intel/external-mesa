@@ -130,7 +130,9 @@ DEV_FILES = \
 	dev/gen_debug.c \
 	dev/gen_debug.h \
 	dev/gen_device_info.c \
-	dev/gen_device_info.h
+	dev/gen_device_info.h \
+	dev/dump_batch_buffer.c \
+	dev/dump_batch_buffer.h
 
 GENXML_XML_FILES = \
 	genxml/gen4.xml \
