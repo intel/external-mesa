@@ -33,6 +33,7 @@
 #include "brw_state.h"
 #include "common/gen_decoder.h"
 #include "common/gen_gem.h"
+#include "dev/dump_batch_buffer.h"
 
 #include "util/hash_table.h"
 
@@ -52,6 +53,9 @@
  */
 #define BATCH_SZ (20 * 1024)
 #define STATE_SZ (16 * 1024)
+
+
+FILE *g_log_file = NULL;
 
 static void
 intel_batchbuffer_reset(struct brw_context *brw);
@@ -157,6 +161,14 @@ intel_batchbuffer_init(struct brw_context *brw)
       malloc(batch->exec_array_size * sizeof(batch->validation_list[0]));
 
    if (INTEL_DEBUG & DEBUG_BATCH) {
+#ifdef HAVE_ANDROID_PLATFORM
+      g_log_file = create_log_file();
+      if (!g_log_file) {
+         g_log_file = stderr;
+      }
+#else
+      g_log_file = stderr;
+#endif
       batch->state_batch_sizes =
          _mesa_hash_table_create(NULL, uint_key_hash, uint_key_compare);
 
@@ -166,7 +178,7 @@ intel_batchbuffer_init(struct brw_context *brw)
          GEN_BATCH_DECODE_OFFSETS |
          GEN_BATCH_DECODE_FLOATS;
 
-      gen_batch_decode_ctx_init(&batch->decoder, devinfo, stderr,
+      gen_batch_decode_ctx_init(&batch->decoder, devinfo, g_log_file,
                                 decode_flags, NULL, decode_get_bo,
                                 decode_get_state_size, brw);
       batch->decoder.max_vbo_decoded_lines = 100;
@@ -349,6 +361,12 @@ intel_batchbuffer_free(struct intel_batchbuffer *batch)
       _mesa_hash_table_destroy(batch->state_batch_sizes, NULL);
       gen_batch_decode_ctx_finish(&batch->decoder);
    }
+
+#ifdef HAVE_ANDROID_PLATFORM
+   if (INTEL_DEBUG & DEBUG_BATCH) {
+      close_log_file(&g_log_file);
+   }
+#endif
 }
 
 /**
@@ -835,7 +853,7 @@ submit_batch(struct brw_context *brw, int in_fence_fd, int *out_fence_fd)
       brw_check_for_reset(brw);
 
    if (ret != 0) {
-      fprintf(stderr, "i965: Failed to submit batchbuffer: %s\n",
+      dbg_printf("i965: Failed to submit batchbuffer: %s\n",
               strerror(-ret));
       exit(1);
    }

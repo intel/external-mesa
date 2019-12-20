@@ -30,6 +30,9 @@
  */
 
 #include <stdlib.h>
+#ifdef HAVE_ANDROID_PLATFORM
+#include <cutils/properties.h>
+#endif
 
 #include "dev/gen_debug.h"
 #include "util/macros.h"
@@ -104,10 +107,25 @@ intel_debug_flag_for_shader_stage(gl_shader_stage stage)
    return flags[stage];
 }
 
+#ifdef HAVE_ANDROID_PLATFORM
+char* getprop(const char *argv)
+{
+	static char value[PROPERTY_VALUE_MAX];
+	char *default_value = "";
+	property_get(argv, value, default_value);
+	return value;
+}
+#endif
+
 static void
 brw_process_intel_debug_variable_once(void)
 {
+#ifdef HAVE_ANDROID_PLATFORM
+   INTEL_DEBUG = parse_debug_string(getprop("INTEL_DEBUG"), debug_control);
+   dbg_printf("%s,%d, INTEL_DEBUG:%08x\n", __FUNCTION__,__LINE__, INTEL_DEBUG);
+#else
    INTEL_DEBUG = parse_debug_string(getenv("INTEL_DEBUG"), debug_control);
+#endif
 }
 
 void

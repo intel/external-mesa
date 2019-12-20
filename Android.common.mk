@@ -27,7 +27,8 @@ endif
 
 LOCAL_C_INCLUDES += \
 	$(MESA_TOP)/src \
-	$(MESA_TOP)/include
+	$(MESA_TOP)/include \
+	system/core/include
 
 MESA_VERSION := $(shell cat $(MESA_TOP)/VERSION)
 LOCAL_CFLAGS += \
@@ -47,6 +48,7 @@ LOCAL_CFLAGS += \
 # here to fix the radeonsi build.
 LOCAL_CFLAGS += \
 	-DANDROID_API_LEVEL=$(PLATFORM_SDK_VERSION) \
+	-DHAVE_ANDROID_PLATFORM \
 	-DENABLE_SHADER_CACHE \
 	-D__STDC_CONSTANT_MACROS \
 	-D__STDC_LIMIT_MACROS \
