@@ -27,7 +27,9 @@ endif
 
 LOCAL_C_INCLUDES += \
 	$(MESA_TOP)/src \
-	$(MESA_TOP)/include
+	$(MESA_TOP)/include \
+        system/core/include/cutils \
+        system/core/liblog/include
 
 MESA_VERSION := $(shell cat $(MESA_TOP)/VERSION)
 LOCAL_CFLAGS += \
@@ -124,6 +126,9 @@ ifneq ($(LOCAL_IS_HOST_MODULE),true)
 LOCAL_CFLAGS += -DHAVE_LIBDRM
 LOCAL_SHARED_LIBRARIES += libdrm
 endif
+
+LOCAL_SHARED_LIBRARIES += libcutils \
+                          liblog
 
 LOCAL_CFLAGS_32 += -DDEFAULT_DRIVER_DIR=\"/vendor/lib/$(MESA_DRI_MODULE_REL_PATH)\"
 LOCAL_CFLAGS_64 += -DDEFAULT_DRIVER_DIR=\"/vendor/lib64/$(MESA_DRI_MODULE_REL_PATH)\"
