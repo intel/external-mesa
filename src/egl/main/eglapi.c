@@ -95,6 +95,7 @@
 #include "c99_compat.h"
 #include "c11/threads.h"
 #include "util/macros.h"
+#include "util/android_trace.h"
 
 #include "eglapi.h"
 #include "egldefines.h"
@@ -1309,6 +1310,7 @@ static EGLBoolean
 _eglSwapBuffersWithDamageCommon(_EGLDisplay *disp, _EGLSurface *surf,
                                 EGLint *rects, EGLint n_rects)
 {
+   MTRACE_BEGIN();
    _EGLContext *ctx = _eglGetCurrentContext();
    _EGLDriver *drv;
    EGLBoolean ret;
@@ -1337,6 +1339,7 @@ _eglSwapBuffersWithDamageCommon(_EGLDisplay *disp, _EGLSurface *surf,
       surf->BufferAgeRead = EGL_FALSE;
    }
 
+   MTRACE_END();
    RETURN_EGL_EVAL(disp, ret);
 }
 
@@ -1354,10 +1357,13 @@ static EGLBoolean EGLAPIENTRY
 eglSwapBuffersWithDamageKHR(EGLDisplay dpy, EGLSurface surface,
                             EGLint *rects, EGLint n_rects)
 {
+   MTRACE_BEGIN();
    _EGLDisplay *disp = _eglLockDisplay(dpy);
    _EGLSurface *surf = _eglLookupSurface(surface, disp);
    _EGL_FUNC_START(disp, EGL_OBJECT_SURFACE_KHR, surf, EGL_FALSE);
-   return _eglSwapBuffersWithDamageCommon(disp, surf, rects, n_rects);
+   EGLBoolean ret =  _eglSwapBuffersWithDamageCommon(disp, surf, rects, n_rects);
+   MTRACE_END();
+   return ret;
 }
 
 /**
