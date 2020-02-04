@@ -2430,8 +2430,6 @@ fs_generator::generate_code(const cfg_t *cfg, int dispatch_width,
       stats->fills = fill_count;
    }
 
-   inst_count[ffs(dispatch_width) - 4] = before_size / 16;
-
    return start_offset;
 }
 
@@ -2439,14 +2437,4 @@ const unsigned *
 fs_generator::get_assembly()
 {
    return brw_get_program(p, &prog_data->program_size);
-}
-
-int
-fs_generator::get_inst_count(int dispatch_width)
-{
-   if (dispatch_width == 8 || dispatch_width == 16 || dispatch_width == 32) {
-      return inst_count[ffs(dispatch_width) - 4];
-   } else {
-      return 0;
-   }
 }
