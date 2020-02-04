@@ -79,12 +79,12 @@ enum {
 static const struct droid_yuv_format droid_yuv_formats[] = {
    /* Native format, YCrCb, Chroma step, DRI image FourCC */
    { HAL_PIXEL_FORMAT_YCbCr_420_888, YCbCr, 2, DRM_FORMAT_NV12 },
-   { HAL_PIXEL_FORMAT_P010_INTEL,      YCbCr, 4, __DRI_IMAGE_FOURCC_P010 },
+   { HAL_PIXEL_FORMAT_P010_INTEL,      YCbCr, 4, DRM_FORMAT_P010 },
    { HAL_PIXEL_FORMAT_YCbCr_420_888, YCbCr, 1, DRM_FORMAT_YUV420 },
    { HAL_PIXEL_FORMAT_YCbCr_420_888, YCrCb, 1, DRM_FORMAT_YVU420 },
    { HAL_PIXEL_FORMAT_YV12,          YCrCb, 1, DRM_FORMAT_YVU420 },
-   { HAL_PIXEL_FORMAT_NV12,            YCbCr, 2, __DRI_IMAGE_FOURCC_NV12 },
-   { HAL_PIXEL_FORMAT_NV12_Y_TILED_INTEL, YCbCr, 2, __DRI_IMAGE_FOURCC_NV12 },
+   { HAL_PIXEL_FORMAT_NV12,            YCbCr, 2, DRM_FORMAT_NV12 },
+   { HAL_PIXEL_FORMAT_NV12_Y_TILED_INTEL, YCbCr, 2, DRM_FORMAT_NV12 },
    /* HACK: See droid_create_image_from_prime_fds() and
     * https://issuetracker.google.com/32077885. */
    { HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED, YCbCr, 2, DRM_FORMAT_NV12 },
