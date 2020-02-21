@@ -1416,7 +1416,6 @@ brw_bo_gem_create_from_prime_internal(struct brw_bufmgr *bufmgr, int prime_fd,
    bo->name = "prime";
    bo->reusable = false;
    bo->external = true;
-   bo->kflags = bufmgr->initial_kflags;
 
    if (bo->kflags & EXEC_OBJECT_PINNED) {
       assert(bo->size > 0);
