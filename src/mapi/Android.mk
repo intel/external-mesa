@@ -44,7 +44,7 @@ LOCAL_SRC_FILES := \
 	u_execmem.c
 
 LOCAL_CFLAGS := \
-	-DGLX_USE_TLS \
+	-DUSE_ELF_TLS \
 	-DMAPI_MODE_GLAPI \
 	-DMAPI_ABI_HEADER=\"$(abi_header)\"
 
