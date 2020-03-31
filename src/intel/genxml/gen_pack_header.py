@@ -204,7 +204,7 @@ def to_alphanum(name):
         '\'': '',
     }
 
-    for i, j in substitutions.items():
+    for i, j in list(substitutions.items()):
         name = name.replace(i, j)
 
     return name
@@ -300,10 +300,10 @@ class Field(object):
         elif self.type == 'mbo':
             return
         else:
-            print("#error unhandled type: %s" % self.type)
+            print(("#error unhandled type: %s" % self.type))
             return
 
-        print("   %-36s %s%s;" % (type, self.name, dim))
+        print(("   %-36s %s%s;" % (type, self.name, dim)))
 
         prefix = ""
         if self.values and self.default is None:
@@ -311,7 +311,7 @@ class Field(object):
                 prefix = self.prefix + "_"
 
         for value in self.values:
-            print("#define %-40s %d" % (prefix + value.name, value.value))
+            print(("#define %-40s %d" % (prefix + value.name, value.value)))
 
 class Group(object):
     def __init__(self, parser, parent, start, count, size):
@@ -397,7 +397,7 @@ class Group(object):
             # Handle MBZ dwords
             if not index in dwords:
                 print("")
-                print("   dw[%d] = 0;" % index)
+                print(("   dw[%d] = 0;" % index))
                 continue
 
             # For 64 bit dwords, we aliased the two dword entries in the dword
@@ -416,8 +416,8 @@ class Group(object):
                 name = field.name + field.dim
                 if field.is_struct_type() and field.start % 32 == 0:
                     print("")
-                    print("   %s_pack(data, &dw[%d], &values->%s);" %
-                          (self.parser.gen_prefix(safe_name(field.type)), index, name))
+                    print(("   %s_pack(data, &dw[%d], &values->%s);" %
+                          (self.parser.gen_prefix(safe_name(field.type)), index, name)))
                     continue
 
             # Pack any fields of struct type first so we have integer values
@@ -427,9 +427,9 @@ class Group(object):
                 if isinstance(field, Field) and field.is_struct_type():
                     name = field.name + field.dim
                     print("")
-                    print("   uint32_t v%d_%d;" % (index, field_index))
-                    print("   %s_pack(data, &v%d_%d, &values->%s);" %
-                          (self.parser.gen_prefix(safe_name(field.type)), index, field_index, name))
+                    print(("   uint32_t v%d_%d;" % (index, field_index)))
+                    print(("   %s_pack(data, &v%d_%d, &values->%s);" %
+                          (self.parser.gen_prefix(safe_name(field.type)), index, field_index, name)))
                     field_index = field_index + 1
 
             print("")
@@ -441,10 +441,10 @@ class Group(object):
 
             if dw.size == 32 and dw.address == None:
                 v = None
-                print("   dw[%d] =" % index)
+                print(("   dw[%d] =" % index))
             elif len(dw.fields) > address_count:
                 v = "v%d" % index
-                print("   const uint%d_t %s =" % (dw.size, v))
+                print(("   const uint%d_t %s =" % (dw.size, v)))
             else:
                 v = "0"
 
@@ -491,25 +491,25 @@ class Group(object):
                                               (name, field.type))
 
             if non_address_fields:
-                print(" |\n".join("      " + f for f in non_address_fields) + ";")
+                print((" |\n".join("      " + f for f in non_address_fields) + ";"))
 
             if dw.size == 32:
                 if dw.address:
-                    print("   dw[%d] = __gen_combine_address(data, &dw[%d], values->%s, %s);" % (index, index, dw.address.name + field.dim, v))
+                    print(("   dw[%d] = __gen_combine_address(data, &dw[%d], values->%s, %s);" % (index, index, dw.address.name + field.dim, v)))
                 continue
 
             if dw.address:
                 v_address = "v%d_address" % index
-                print("   const uint64_t %s =\n      __gen_combine_address(data, &dw[%d], values->%s, %s);" %
-                      (v_address, index, dw.address.name + field.dim, v))
+                print(("   const uint64_t %s =\n      __gen_combine_address(data, &dw[%d], values->%s, %s);" %
+                      (v_address, index, dw.address.name + field.dim, v)))
                 if len(dw.fields) > address_count:
-                    print("   dw[%d] = %s;" % (index, v_address))
-                    print("   dw[%d] = (%s >> 32) | (%s >> 32);" % (index + 1, v_address, v))
+                    print(("   dw[%d] = %s;" % (index, v_address)))
+                    print(("   dw[%d] = (%s >> 32) | (%s >> 32);" % (index + 1, v_address, v)))
                     continue
                 else:
                     v = v_address
-            print("   dw[%d] = %s;" % (index, v))
-            print("   dw[%d] = %s >> 32;" % (index + 1, v))
+            print(("   dw[%d] = %s;" % (index, v)))
+            print(("   dw[%d] = %s >> 32;" % (index + 1, v)))
 
 class Value(object):
     def __init__(self, attrs):
@@ -540,7 +540,7 @@ class Parser(object):
         if name == "genxml":
             self.platform = attrs["name"]
             self.gen = attrs["gen"].replace('.', '')
-            print(pack_header % {'license': license, 'platform': self.platform, 'guard': self.gen_guard()})
+            print((pack_header % {'license': license, 'platform': self.platform, 'guard': self.gen_guard()}))
         elif name in ("instruction", "struct", "register"):
             if name == "instruction":
                 self.instruction = safe_name(attrs["name"])
@@ -608,21 +608,21 @@ class Parser(object):
             self.emit_enum()
             self.enum = None
         elif name == "genxml":
-            print('#endif /* %s */' % self.gen_guard())
+            print(('#endif /* %s */' % self.gen_guard()))
 
     def emit_template_struct(self, name, group):
-        print("struct %s {" % self.gen_prefix(name))
+        print(("struct %s {" % self.gen_prefix(name)))
         group.emit_template_struct("")
         print("};\n")
 
     def emit_pack_function(self, name, group):
         name = self.gen_prefix(name)
-        print(textwrap.dedent("""\
+        print((textwrap.dedent("""\
             static inline void
             %s_pack(__attribute__((unused)) __gen_user_data *data,
                   %s__attribute__((unused)) void * restrict dst,
                   %s__attribute__((unused)) const struct %s * restrict values)
-            {""") % (name, ' ' * len(name), ' ' * len(name), name))
+            {""") % (name, ' ' * len(name), ' ' * len(name), name)))
 
         (dwords, length) = group.collect_dwords_and_length()
         if length:
@@ -639,10 +639,10 @@ class Parser(object):
             return
 
         if not self.length is None:
-            print('#define %-33s %6d' %
-                  (self.gen_prefix(name + "_length"), self.length))
-        print('#define %-33s %6d' %
-              (self.gen_prefix(name + "_length_bias"), self.length_bias))
+            print(('#define %-33s %6d' %
+                  (self.gen_prefix(name + "_length"), self.length)))
+        print(('#define %-33s %6d' %
+              (self.gen_prefix(name + "_length_bias"), self.length_bias)))
 
         default_fields = []
         for field in self.group.fields:
@@ -653,8 +653,8 @@ class Parser(object):
             default_fields.append("   .%-35s = %6d" % (field.name, field.default))
 
         if default_fields:
-            print('#define %-40s\\' % (self.gen_prefix(name + '_header')))
-            print(",  \\\n".join(default_fields))
+            print(('#define %-40s\\' % (self.gen_prefix(name + '_header'))))
+            print((",  \\\n".join(default_fields)))
             print('')
 
         self.emit_template_struct(self.instruction, self.group)
@@ -664,12 +664,12 @@ class Parser(object):
     def emit_register(self):
         name = self.register
         if not self.reg_num is None:
-            print('#define %-33s 0x%04x' %
-                  (self.gen_prefix(name + "_num"), self.reg_num))
+            print(('#define %-33s 0x%04x' %
+                  (self.gen_prefix(name + "_num"), self.reg_num)))
 
         if not self.length is None:
-            print('#define %-33s %6d' %
-                  (self.gen_prefix(name + "_length"), self.length))
+            print(('#define %-33s %6d' %
+                  (self.gen_prefix(name + "_length"), self.length)))
 
         self.emit_template_struct(self.register, self.group)
         self.emit_pack_function(self.register, self.group)
@@ -677,20 +677,20 @@ class Parser(object):
     def emit_struct(self):
         name = self.struct
         if not self.length is None:
-            print('#define %-33s %6d' %
-                  (self.gen_prefix(name + "_length"), self.length))
+            print(('#define %-33s %6d' %
+                  (self.gen_prefix(name + "_length"), self.length)))
 
         self.emit_template_struct(self.struct, self.group)
         self.emit_pack_function(self.struct, self.group)
 
     def emit_enum(self):
-        print('enum %s {' % self.gen_prefix(self.enum))
+        print(('enum %s {' % self.gen_prefix(self.enum)))
         for value in self.values:
             if self.prefix:
                 name = self.prefix + "_" + value.name
             else:
                 name = value.name
-            print('   %-36s = %6d,' % (name.upper(), value.value))
+            print(('   %-36s = %6d,' % (name.upper(), value.value)))
         print('};\n')
 
     def parse(self, filename):
@@ -722,7 +722,7 @@ def main():
     if set(engines) - set(valid_engines):
         print("Invalid engine specified, valid engines are:\n")
         for e in valid_engines:
-            print("\t%s" % e)
+            print(("\t%s" % e))
         sys.exit(1)
 
     p = Parser()

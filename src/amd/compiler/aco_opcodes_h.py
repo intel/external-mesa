@@ -44,4 +44,4 @@ enum class aco_opcode : std::uint16_t {
 from aco_opcodes import opcodes
 from mako.template import Template
 
-print(Template(template).render(opcodes=opcodes))
+print((Template(template).render(opcodes=opcodes)))

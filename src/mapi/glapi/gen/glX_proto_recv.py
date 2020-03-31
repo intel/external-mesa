@@ -42,10 +42,10 @@ class PrintGlxDispatch_h(gl_XML.gl_print_base):
 
 
     def printRealHeader(self):
-        print '#  include <X11/Xfuncproto.h>'
-        print ''
-        print 'struct __GLXclientStateRec;'
-        print ''
+        print('#  include <X11/Xfuncproto.h>')
+        print('')
+        print('struct __GLXclientStateRec;')
+        print('')
         return
 
 
@@ -53,16 +53,16 @@ class PrintGlxDispatch_h(gl_XML.gl_print_base):
         for func in api.functionIterateAll():
             if not func.ignore and not func.vectorequiv:
                 if func.glx_rop:
-                    print 'extern _X_HIDDEN void __glXDisp_%s(GLbyte * pc);' % (func.name)
-                    print 'extern _X_HIDDEN _X_COLD void __glXDispSwap_%s(GLbyte * pc);' % (func.name)
+                    print('extern _X_HIDDEN void __glXDisp_%s(GLbyte * pc);' % (func.name))
+                    print('extern _X_HIDDEN _X_COLD void __glXDispSwap_%s(GLbyte * pc);' % (func.name))
                 elif func.glx_sop or func.glx_vendorpriv:
-                    print 'extern _X_HIDDEN int __glXDisp_%s(struct __GLXclientStateRec *, GLbyte *);' % (func.name)
-                    print 'extern _X_HIDDEN _X_COLD int __glXDispSwap_%s(struct __GLXclientStateRec *, GLbyte *);' % (func.name)
+                    print('extern _X_HIDDEN int __glXDisp_%s(struct __GLXclientStateRec *, GLbyte *);' % (func.name))
+                    print('extern _X_HIDDEN _X_COLD int __glXDispSwap_%s(struct __GLXclientStateRec *, GLbyte *);' % (func.name))
 
                     if func.glx_sop and func.glx_vendorpriv:
                         n = func.glx_vendorpriv_names[0]
-                        print 'extern _X_HIDDEN int __glXDisp_%s(struct __GLXclientStateRec *, GLbyte *);' % (n)
-                        print 'extern _X_HIDDEN _X_COLD int __glXDispSwap_%s(struct __GLXclientStateRec *, GLbyte *);' % (n)
+                        print('extern _X_HIDDEN int __glXDisp_%s(struct __GLXclientStateRec *, GLbyte *);' % (n))
+                        print('extern _X_HIDDEN _X_COLD int __glXDispSwap_%s(struct __GLXclientStateRec *, GLbyte *);' % (n))
 
         return
 
@@ -79,24 +79,24 @@ class PrintGlxDispatchFunctions(glX_proto_common.glx_print_proto):
 
 
     def printRealHeader(self):
-        print '#include <inttypes.h>'
-        print '#include "glxserver.h"'
-        print '#include "indirect_size.h"'
-        print '#include "indirect_size_get.h"'
-        print '#include "indirect_dispatch.h"'
-        print '#include "glxbyteorder.h"'
-        print '#include "indirect_util.h"'
-        print '#include "singlesize.h"'
-        print ''
-        print 'typedef struct {'
-        print '    __GLX_PIXEL_3D_HDR;'
-        print '} __GLXpixel3DHeader;'
-        print ''
-        print 'extern GLboolean __glXErrorOccured( void );'
-        print 'extern void __glXClearErrorOccured( void );'
-        print ''
-        print 'static const unsigned dummy_answer[2] = {0, 0};'
-        print ''
+        print('#include <inttypes.h>')
+        print('#include "glxserver.h"')
+        print('#include "indirect_size.h"')
+        print('#include "indirect_size_get.h"')
+        print('#include "indirect_dispatch.h"')
+        print('#include "glxbyteorder.h"')
+        print('#include "indirect_util.h"')
+        print('#include "singlesize.h"')
+        print('')
+        print('typedef struct {')
+        print('    __GLX_PIXEL_3D_HDR;')
+        print('} __GLXpixel3DHeader;')
+        print('')
+        print('extern GLboolean __glXErrorOccured( void );')
+        print('extern void __glXClearErrorOccured( void );')
+        print('')
+        print('static const unsigned dummy_answer[2] = {0, 0};')
+        print('')
         return
 
 
@@ -128,14 +128,14 @@ class PrintGlxDispatchFunctions(glX_proto_common.glx_print_proto):
             base = '__glXDispSwap'
 
         if f.glx_rop:
-            print 'void %s_%s(GLbyte * pc)' % (base, name)
+            print('void %s_%s(GLbyte * pc)' % (base, name))
         else:
-            print 'int %s_%s(__GLXclientState *cl, GLbyte *pc)' % (base, name)
+            print('int %s_%s(__GLXclientState *cl, GLbyte *pc)' % (base, name))
 
-        print '{'
+        print('{')
 
         if not f.is_abi():
-            print '    %s %s = __glGetProcAddress("gl%s");' % (self.fptrType(name), name, name)
+            print('    %s %s = __glGetProcAddress("gl%s");' % (self.fptrType(name), name, name))
 
         if f.glx_rop or f.vectorequiv:
             self.printRenderFunction(f)
@@ -143,10 +143,10 @@ class PrintGlxDispatchFunctions(glX_proto_common.glx_print_proto):
             if len(f.get_images()) == 0: 
                 self.printSingleFunction(f, name)
         else:
-            print "/* Missing GLX protocol for %s. */" % (name)
+            print("/* Missing GLX protocol for %s. */" % (name))
 
-        print '}'
-        print ''
+        print('}')
+        print('')
         return
 
 
@@ -170,30 +170,30 @@ class PrintGlxDispatchFunctions(glX_proto_common.glx_print_proto):
                 if t.glx_name not in already_done:
                     real_name = self.real_types[t_size]
 
-                    print 'static _X_UNUSED %s' % (t_name)
-                    print 'bswap_%s(const void * src)' % (t.glx_name)
-                    print '{'
-                    print '    union { %s dst; %s ret; } x;' % (real_name, t_name)
-                    print '    x.dst = bswap_%u(*(%s *) src);' % (t_size * 8, real_name)
-                    print '    return x.ret;'
-                    print '}'
-                    print ''
+                    print('static _X_UNUSED %s' % (t_name))
+                    print('bswap_%s(const void * src)' % (t.glx_name))
+                    print('{')
+                    print('    union { %s dst; %s ret; } x;' % (real_name, t_name))
+                    print('    x.dst = bswap_%u(*(%s *) src);' % (t_size * 8, real_name))
+                    print('    return x.ret;')
+                    print('}')
+                    print('')
                     already_done.append( t.glx_name )
 
         for bits in [16, 32, 64]:
-            print 'static void *'
-            print 'bswap_%u_array(uint%u_t * src, unsigned count)' % (bits, bits)
-            print '{'
-            print '    unsigned  i;'
-            print ''
-            print '    for (i = 0 ; i < count ; i++) {'
-            print '        uint%u_t temp = bswap_%u(src[i]);' % (bits, bits)
-            print '        src[i] = temp;'
-            print '    }'
-            print ''
-            print '    return src;'
-            print '}'
-            print ''
+            print('static void *')
+            print('bswap_%u_array(uint%u_t * src, unsigned count)' % (bits, bits))
+            print('{')
+            print('    unsigned  i;')
+            print('')
+            print('    for (i = 0 ; i < count ; i++) {')
+            print('        uint%u_t temp = bswap_%u(src[i]);' % (bits, bits))
+            print('        src[i] = temp;')
+            print('    }')
+            print('')
+            print('    return src;')
+            print('}')
+            print('')
 
 
     def fetch_param(self, param):
@@ -234,7 +234,7 @@ class PrintGlxDispatchFunctions(glX_proto_common.glx_print_proto):
 
             list.append( '%s        %s' % (indent, location) )
 
-        print '%s    %s%s%s(%s);' % (indent, retval_assign, prefix, f.name, string.join(list, ',\n'))
+        print('%s    %s%s%s(%s);' % (indent, retval_assign, prefix, f.name, string.join(list, ',\n')))
 
 
     def common_func_print_just_start(self, f, indent):
@@ -258,7 +258,7 @@ class PrintGlxDispatchFunctions(glX_proto_common.glx_print_proto):
             # FIXME or something similar.
 
             if param.img_null_flag:
-                print '%s    const CARD32 ptr_is_null = *(CARD32 *)(pc + %s);' % (indent, param.offset - 4)
+                print('%s    const CARD32 ptr_is_null = *(CARD32 *)(pc + %s);' % (indent, param.offset - 4))
                 cond = '(ptr_is_null != 0) ? NULL : '
             else:
                 cond = ""
@@ -269,33 +269,33 @@ class PrintGlxDispatchFunctions(glX_proto_common.glx_print_proto):
             if param.is_image():
                 offset = f.offset_of( param.name )
 
-                print '%s    %s const %s = (%s) (%s(pc + %s));' % (indent, type_string, param.name, type_string, cond, offset)
+                print('%s    %s const %s = (%s) (%s(pc + %s));' % (indent, type_string, param.name, type_string, cond, offset))
 
                 if param.depth:
-                    print '%s    __GLXpixel3DHeader * const hdr = (__GLXpixel3DHeader *)(pc);' % (indent)
+                    print('%s    __GLXpixel3DHeader * const hdr = (__GLXpixel3DHeader *)(pc);' % (indent))
                 else:
-                    print '%s    __GLXpixelHeader * const hdr = (__GLXpixelHeader *)(pc);' % (indent)
+                    print('%s    __GLXpixelHeader * const hdr = (__GLXpixelHeader *)(pc);' % (indent))
 
                 need_blank = 1
             elif param.is_counter or param.name in f.count_parameter_list:
                 location = self.fetch_param(param)
-                print '%s    const %s %s = %s;' % (indent, type_string, param.name, location)
+                print('%s    const %s %s = %s;' % (indent, type_string, param.name, location))
                 need_blank = 1
             elif len(param.count_parameter_list):
                 if param.size() == 1 and not self.do_swap:
                     location = self.fetch_param(param)
-                    print '%s    %s %s = %s%s;' % (indent, type_string, param.name, cond, location)
+                    print('%s    %s %s = %s%s;' % (indent, type_string, param.name, cond, location))
                 else:
-                    print '%s    %s %s;' % (indent, type_string, param.name)
+                    print('%s    %s %s;' % (indent, type_string, param.name))
                 need_blank = 1
 
 
 
         if need_blank:
-            print ''
+            print('')
 
         if align64:
-            print '#ifdef __GLX_ALIGN64'
+            print('#ifdef __GLX_ALIGN64')
 
             if f.has_variable_size_request():
                 self.emit_packet_size_calculation(f, 4)
@@ -303,12 +303,12 @@ class PrintGlxDispatchFunctions(glX_proto_common.glx_print_proto):
             else:
                 s = str((f.command_fixed_length() + 3) & ~3)
 
-            print '    if ((unsigned long)(pc) & 7) {'
-            print '        (void) memmove(pc-4, pc, %s);' % (s)
-            print '        pc -= 4;'
-            print '    }'
-            print '#endif'
-            print ''
+            print('    if ((unsigned long)(pc) & 7) {')
+            print('        (void) memmove(pc-4, pc, %s);' % (s))
+            print('        pc -= 4;')
+            print('    }')
+            print('#endif')
+            print('')
 
 
         need_blank = 0
@@ -333,35 +333,35 @@ class PrintGlxDispatchFunctions(glX_proto_common.glx_print_proto):
                         x.append( [2, ['SHORT', 'UNSIGNED_SHORT']] )
                         x.append( [4, ['INT', 'UNSIGNED_INT', 'FLOAT']] )
 
-                        print '    switch(%s) {' % (param.count_parameter_list[0])
+                        print('    switch(%s) {' % (param.count_parameter_list[0]))
                         for sub in x:
                             for t_name in sub[1]:
-                                print '    case GL_%s:' % (t_name)
+                                print('    case GL_%s:' % (t_name))
 
                             if sub[0] == 1:
-                                print '        %s = (%s) (pc + %s); break;' % (param.name, param.type_string(), o)
+                                print('        %s = (%s) (pc + %s); break;' % (param.name, param.type_string(), o))
                             else:
                                 swap_func = self.swap_name(sub[0])
-                                print '        %s = (%s) %s( (%s *) (pc + %s), %s ); break;' % (param.name, param.type_string(), swap_func, self.real_types[sub[0]], o, count_name)
-                        print '    default:'
-                        print '        return;'
-                        print '    }'
+                                print('        %s = (%s) %s( (%s *) (pc + %s), %s ); break;' % (param.name, param.type_string(), swap_func, self.real_types[sub[0]], o, count_name))
+                        print('    default:')
+                        print('        return;')
+                        print('    }')
                     else:
                         swap_func = self.swap_name(type_size)
                         compsize = self.size_call(f, 1)
-                        print '    %s = (%s) %s( (%s *) (pc + %s), %s );' % (param.name, param.type_string(), swap_func, self.real_types[type_size], o, compsize)
+                        print('    %s = (%s) %s( (%s *) (pc + %s), %s );' % (param.name, param.type_string(), swap_func, self.real_types[type_size], o, compsize))
 
                     need_blank = 1
 
         else:
             for param in f.parameterIterateGlxSend():
                 if param.count_parameter_list:
-                    print '%s    %s = (%s) (pc + %s);' % (indent, param.name, param.type_string(), param.offset)
+                    print('%s    %s = (%s) (pc + %s);' % (indent, param.name, param.type_string(), param.offset))
                     need_blank = 1
 
 
         if need_blank:
-            print ''
+            print('')
 
 
         return
@@ -369,29 +369,29 @@ class PrintGlxDispatchFunctions(glX_proto_common.glx_print_proto):
 
     def printSingleFunction(self, f, name):
         if name not in f.glx_vendorpriv_names:
-            print '    xGLXSingleReq * const req = (xGLXSingleReq *) pc;'
+            print('    xGLXSingleReq * const req = (xGLXSingleReq *) pc;')
         else:
-            print '    xGLXVendorPrivateReq * const req = (xGLXVendorPrivateReq *) pc;'
+            print('    xGLXVendorPrivateReq * const req = (xGLXVendorPrivateReq *) pc;')
 
-        print '    int error;'
+        print('    int error;')
 
         if self.do_swap:
-            print '    __GLXcontext * const cx = __glXForceCurrent(cl, bswap_CARD32( &req->contextTag ), &error);'
+            print('    __GLXcontext * const cx = __glXForceCurrent(cl, bswap_CARD32( &req->contextTag ), &error);')
         else:
-            print '    __GLXcontext * const cx = __glXForceCurrent(cl, req->contextTag, &error);'
+            print('    __GLXcontext * const cx = __glXForceCurrent(cl, req->contextTag, &error);')
 
-        print ''
+        print('')
         if name not in f.glx_vendorpriv_names:
-            print '    pc += __GLX_SINGLE_HDR_SIZE;'
+            print('    pc += __GLX_SINGLE_HDR_SIZE;')
         else:
-            print '    pc += __GLX_VENDPRIV_HDR_SIZE;'
+            print('    pc += __GLX_VENDPRIV_HDR_SIZE;')
 
-        print '    if ( cx != NULL ) {'
+        print('    if ( cx != NULL ) {')
         self.common_func_print_just_start(f, "    ")
 
 
         if f.return_type != 'void':
-            print '        %s retval;' % (f.return_type)
+            print('        %s retval;' % (f.return_type))
             retval_string = "retval"
             retval_assign = "retval = "
         else:
@@ -419,27 +419,27 @@ class PrintGlxDispatchFunctions(glX_proto_common.glx_print_proto):
 
 
             if param.count_parameter_list:
-                print '        const GLuint compsize = %s;' % (self.size_call(f, 1))
-                print '        %s answerBuffer[200];' %  (answer_type)
-                print '        %s %s = __glXGetAnswerBuffer(cl, compsize%s, answerBuffer, sizeof(answerBuffer), %u);' % (param.type_string(), param.name, size_scale, type_size )
+                print('        const GLuint compsize = %s;' % (self.size_call(f, 1)))
+                print('        %s answerBuffer[200];' %  (answer_type))
+                print('        %s %s = __glXGetAnswerBuffer(cl, compsize%s, answerBuffer, sizeof(answerBuffer), %u);' % (param.type_string(), param.name, size_scale, type_size ))
                 answer_string = param.name
                 answer_count = "compsize"
 
-                print ''
-                print '        if (%s == NULL) return BadAlloc;' % (param.name)
-                print '        __glXClearErrorOccured();'
-                print ''
+                print('')
+                print('        if (%s == NULL) return BadAlloc;' % (param.name))
+                print('        __glXClearErrorOccured();')
+                print('')
             elif param.counter:
-                print '        %s answerBuffer[200];' %  (answer_type)
-                print '        %s %s = __glXGetAnswerBuffer(cl, %s%s, answerBuffer, sizeof(answerBuffer), %u);' % (param.type_string(), param.name, param.counter, size_scale, type_size)
+                print('        %s answerBuffer[200];' %  (answer_type))
+                print('        %s %s = __glXGetAnswerBuffer(cl, %s%s, answerBuffer, sizeof(answerBuffer), %u);' % (param.type_string(), param.name, param.counter, size_scale, type_size))
                 answer_string = param.name
                 answer_count = param.counter
-                print ''
-                print '        if (%s == NULL) return BadAlloc;' % (param.name)
-                print '        __glXClearErrorOccured();'
-                print ''
+                print('')
+                print('        if (%s == NULL) return BadAlloc;' % (param.name))
+                print('        __glXClearErrorOccured();')
+                print('')
             elif c >= 1:
-                print '        %s %s[%u];' % (answer_type, param.name, c)
+                print('        %s %s[%u];' % (answer_type, param.name, c))
                 answer_string = param.name
                 answer_count = "%u" % (c)
 
@@ -458,21 +458,21 @@ class PrintGlxDispatchFunctions(glX_proto_common.glx_print_proto):
 
                     if type_size > 1:
                         swap_name = self.swap_name( type_size )
-                        print '        (void) %s( (uint%u_t *) %s, %s );' % (swap_name, 8 * type_size, param.name, answer_count)
+                        print('        (void) %s( (uint%u_t *) %s, %s );' % (swap_name, 8 * type_size, param.name, answer_count))
 
 
                 reply_func = '__glXSendReplySwap'
             else:
                 reply_func = '__glXSendReply'
 
-            print '        %s(cl->client, %s, %s, %u, %s, %s);' % (reply_func, answer_string, answer_count, type_size, is_array_string, retval_string)
+            print('        %s(cl->client, %s, %s, %u, %s, %s);' % (reply_func, answer_string, answer_count, type_size, is_array_string, retval_string))
         #elif f.note_unflushed:
         #	print '        cx->hasUnflushedCommands = GL_TRUE;'
 
-        print '        error = Success;'
-        print '    }'
-        print ''
-        print '    return error;'
+        print('        error = Success;')
+        print('    }')
+        print('')
+        print('    return error;')
         return
 
 
@@ -501,19 +501,19 @@ class PrintGlxDispatchFunctions(glX_proto_common.glx_print_proto):
             # the must NEVER be byte-swapped.
 
             if not (img.img_type == "GL_BITMAP" and img.img_format == "GL_COLOR_INDEX"):
-                print '    glPixelStorei(GL_UNPACK_SWAP_BYTES, hdr->swapBytes);'
+                print('    glPixelStorei(GL_UNPACK_SWAP_BYTES, hdr->swapBytes);')
 
-            print '    glPixelStorei(GL_UNPACK_LSB_FIRST, hdr->lsbFirst);'
+            print('    glPixelStorei(GL_UNPACK_LSB_FIRST, hdr->lsbFirst);')
 
-            print '    glPixelStorei(GL_UNPACK_ROW_LENGTH, (GLint) %shdr->rowLength%s);' % (pre, post)
+            print('    glPixelStorei(GL_UNPACK_ROW_LENGTH, (GLint) %shdr->rowLength%s);' % (pre, post))
             if img.depth:
-                print '    glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, (GLint) %shdr->imageHeight%s);' % (pre, post)
-            print '    glPixelStorei(GL_UNPACK_SKIP_ROWS, (GLint) %shdr->skipRows%s);' % (pre, post)
+                print('    glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, (GLint) %shdr->imageHeight%s);' % (pre, post))
+            print('    glPixelStorei(GL_UNPACK_SKIP_ROWS, (GLint) %shdr->skipRows%s);' % (pre, post))
             if img.depth:
-                print '    glPixelStorei(GL_UNPACK_SKIP_IMAGES, (GLint) %shdr->skipImages%s);' % (pre, post)
-            print '    glPixelStorei(GL_UNPACK_SKIP_PIXELS, (GLint) %shdr->skipPixels%s);' % (pre, post)
-            print '    glPixelStorei(GL_UNPACK_ALIGNMENT, (GLint) %shdr->alignment%s);' % (pre, post)
-            print ''
+                print('    glPixelStorei(GL_UNPACK_SKIP_IMAGES, (GLint) %shdr->skipImages%s);' % (pre, post))
+            print('    glPixelStorei(GL_UNPACK_SKIP_PIXELS, (GLint) %shdr->skipPixels%s);' % (pre, post))
+            print('    glPixelStorei(GL_UNPACK_ALIGNMENT, (GLint) %shdr->alignment%s);' % (pre, post))
+            print('')
 
 
         self.emit_function_call(f, "", "")

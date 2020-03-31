@@ -82,7 +82,7 @@ struct radv_dispatch_table {
 % endfor
 """, output_encoding='utf-8')
 
-TEMPLATE_C = Template(u"""\
+TEMPLATE_C = Template("""\
 /*
  * Copyright © 2015 Intel Corporation
  *
@@ -352,7 +352,7 @@ class StringIntMap(object):
 
     def bake(self):
         self.sorted_strings = \
-            sorted(self.strings.values(), key=lambda x: x.string)
+            sorted(list(self.strings.values()), key=lambda x: x.string)
         offset = 0
         for entry in self.sorted_strings:
             entry.offset = offset
@@ -467,14 +467,14 @@ def get_entrypoints(doc, entrypoints_to_defines, start_index):
             e.extensions.append(ext)
 
     # if the base command is not supported by the driver yet, don't alias aliases
-    for e in entrypoints.values():
+    for e in list(entrypoints.values()):
         if e.alias and not e.alias.enabled:
             e_clone = copy.deepcopy(e.alias)
             e_clone.enabled = True
             e_clone.name = e.name
             entrypoints[e.name] = e_clone
 
-    return [e for e in entrypoints.values() if e.enabled]
+    return [e for e in list(entrypoints.values()) if e.enabled]
 
 
 def get_entrypoints_defines(doc):

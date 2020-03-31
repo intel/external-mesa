@@ -65,4 +65,4 @@ for line in stdout.splitlines():
     if re.match("__driDriverGetExtensions", symbol):
         continue
 
-    print '#define {0:35} {1}{0}'.format(symbol, args.newprefix)
+    print('#define {0:35} {1}{0}'.format(symbol, args.newprefix))

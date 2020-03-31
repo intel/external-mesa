@@ -32,7 +32,7 @@ import sys
 if sys.version_info >= (3, 0, 0):
     STRING_TYPE = str
 else:
-    STRING_TYPE = unicode
+    STRING_TYPE = str
 
 def check_sexp(sexp):
     """Verify that the argument is a proper sexp.

@@ -69,7 +69,7 @@ def to_alphanum(name):
         '\'': '',
     }
 
-    for i, j in substitutions.items():
+    for i, j in list(substitutions.items()):
         name = name.replace(i, j)
 
     return name
@@ -116,7 +116,7 @@ class Field(object):
         self.type = attrs["type"]
 
         if self.type == 'bool' and self.start != self.end:
-            print("#error Field {} has bool type but more than one bit of size".format(self.name));
+            print(("#error Field {} has bool type but more than one bit of size".format(self.name)));
 
         if "prefix" in attrs:
             self.prefix = safe_name(attrs["prefix"]).upper()
@@ -172,14 +172,14 @@ class Field(object):
         elif self.type == 'mbo':
             return
         else:
-            print("#error unhandled type: %s" % self.type)
+            print(("#error unhandled type: %s" % self.type))
             type = "uint32_t"
 
-        print("   %-36s %s%s;" % (type, self.name, dim))
+        print(("   %-36s %s%s;" % (type, self.name, dim)))
 
         for value in self.values:
             name = prefixed_upper_name(self.prefix, value.name)
-            print("#define %-40s %d" % (name, value.value))
+            print(("#define %-40s %d" % (name, value.value)))
 
     def overlaps(self, field):
         return self != field and max(self.start, field.start) <= min(self.end, field.end)
@@ -239,12 +239,12 @@ class Group(object):
 
         for field in self.fields:
             if field.minus_one:
-                print("   assert(values->%s >= 1);" % field.name)
+                print(("   assert(values->%s >= 1);" % field.name))
 
         for index in range(self.length):
             # Handle MBZ bytes
             if not index in bytes:
-                print("   cl[%2d] = 0;" % index)
+                print(("   cl[%2d] = 0;" % index))
                 continue
             byte = bytes[index]
 
@@ -255,7 +255,7 @@ class Group(object):
             # the address during the reloc process, so there's no need for the
             # complicated combine_address() function.
             if byte.address and byte.address not in relocs_emitted:
-                print("   __gen_emit_reloc(data, &values->%s);" % byte.address.name)
+                print(("   __gen_emit_reloc(data, &values->%s);" % byte.address.name))
                 relocs_emitted.add(byte.address)
 
             # Special case: floats can't have any other fields packed into
@@ -272,8 +272,8 @@ class Group(object):
                     if not any(field.overlaps(scan_field) for scan_field in self.fields):
                         assert(field.start == index * 8)
                         print("")
-                        print("   memcpy(&cl[%d], &values->%s, sizeof(values->%s));" %
-                                (index, field.name, field.name))
+                        print(("   memcpy(&cl[%d], &values->%s, sizeof(values->%s));" %
+                                (index, field.name, field.name)))
                         memcpy_fields.add(field)
                         continue
 
@@ -335,7 +335,7 @@ class Group(object):
                         (index, field_index, start, end)
                     field_index = field_index + 1
                 else:
-                    print("/* unhandled field %s, type %s */\n" % (name, field.type))
+                    print(("/* unhandled field %s, type %s */\n" % (name, field.type)))
                     s = None
 
                 if not s == None:
@@ -344,9 +344,9 @@ class Group(object):
                         s = "%s >> %d" % (s, shift)
 
                     if field == byte.fields[-1]:
-                        print("%s %s;" % (prefix, s))
+                        print(("%s %s;" % (prefix, s)))
                     else:
-                        print("%s %s |" % (prefix, s))
+                        print(("%s %s |" % (prefix, s)))
                     prefix = "           "
 
             print("")
@@ -385,14 +385,14 @@ class Group(object):
                     args.append(str(field.fractional_size))
                     convert = "__gen_unpack_sfixed"
                 else:
-                    print("/* unhandled field %s, type %s */\n" % (field.name, field.type))
+                    print(("/* unhandled field %s, type %s */\n" % (field.name, field.type)))
                     s = None
 
                 plusone = ""
                 if field.minus_one:
                     plusone = " + 1"
-                print("   values->%s = %s(%s)%s;" % \
-                      (field.name, convert, ', '.join(args), plusone))
+                print(("   values->%s = %s(%s)%s;" % \
+                      (field.name, convert, ', '.join(args), plusone)))
 
 class Value(object):
     def __init__(self, attrs):
@@ -443,7 +443,7 @@ class Parser(object):
     def start_element(self, name, attrs):
         if name == "vcxml":
             self.platform = "V3D {}.{}".format(self.ver[0], self.ver[1])
-            print(pack_header % {'license': license, 'platform': self.platform, 'guard': self.gen_guard()})
+            print((pack_header % {'license': license, 'platform': self.platform, 'guard': self.gen_guard()}))
         elif name in ("packet", "struct", "register"):
             default_field = None
 
@@ -517,29 +517,29 @@ class Parser(object):
                 self.emit_enum()
             self.enum = None
         elif name == "vcxml":
-            print('#endif /* %s */' % self.gen_guard())
+            print(('#endif /* %s */' % self.gen_guard()))
 
     def emit_template_struct(self, name, group):
-        print("struct %s {" % name)
+        print(("struct %s {" % name))
         group.emit_template_struct("")
         print("};\n")
 
     def emit_pack_function(self, name, group):
-        print("static inline void\n%s_pack(__gen_user_data *data, uint8_t * restrict cl,\n%sconst struct %s * restrict values)\n{" %
-              (name, ' ' * (len(name) + 6), name))
+        print(("static inline void\n%s_pack(__gen_user_data *data, uint8_t * restrict cl,\n%sconst struct %s * restrict values)\n{" %
+              (name, ' ' * (len(name) + 6), name)))
 
         group.emit_pack_function(0)
 
         print("}\n")
 
-        print('#define %-33s %6d' %
-              (name + "_length", self.group.length))
+        print(('#define %-33s %6d' %
+              (name + "_length", self.group.length)))
 
     def emit_unpack_function(self, name, group):
         print("#ifdef __gen_unpack_address")
         print("static inline void")
-        print("%s_unpack(const uint8_t * restrict cl,\n%sstruct %s * restrict values)\n{" %
-              (name, ' ' * (len(name) + 8), name))
+        print(("%s_unpack(const uint8_t * restrict cl,\n%sstruct %s * restrict values)\n{" %
+              (name, ' ' * (len(name) + 8), name)))
 
         group.emit_unpack_function(0)
 
@@ -554,8 +554,8 @@ class Parser(object):
                 continue
             default_fields.append("   .%-35s = %6d" % (field.name, field.default))
 
-        print('#define %-40s\\' % (name + '_header'))
-        print(",  \\\n".join(default_fields))
+        print(('#define %-40s\\' % (name + '_header')))
+        print((",  \\\n".join(default_fields)))
         print('')
 
     def emit_packet(self):
@@ -565,8 +565,8 @@ class Parser(object):
         name = self.packet
 
         assert(self.group.fields[0].name == "opcode")
-        print('#define %-33s %6d' %
-              (name + "_opcode", self.group.fields[0].default))
+        print(('#define %-33s %6d' %
+              (name + "_opcode", self.group.fields[0].default)))
 
         self.emit_header(name)
         self.emit_template_struct(self.packet, self.group)
@@ -581,8 +581,8 @@ class Parser(object):
 
         name = self.register
         if not self.reg_num == None:
-            print('#define %-33s 0x%04x' %
-                  (self.gen_prefix(name + "_num"), self.reg_num))
+            print(('#define %-33s 0x%04x' %
+                  (self.gen_prefix(name + "_num"), self.reg_num)))
 
         self.emit_template_struct(self.register, self.group)
         self.emit_pack_function(self.register, self.group)
@@ -602,13 +602,13 @@ class Parser(object):
         print('')
 
     def emit_enum(self):
-        print('enum %s {' % self.gen_prefix(self.enum))
+        print(('enum %s {' % self.gen_prefix(self.enum)))
         for value in self.values:
             name = value.name
             if self.prefix:
                 name = self.prefix + "_" + name
             name = safe_name(name).upper()
-            print('        % -36s = %6d,' % (name, value.value))
+            print(('        % -36s = %6d,' % (name, value.value)))
         print('};\n')
 
     def parse(self, filename):

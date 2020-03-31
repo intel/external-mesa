@@ -653,7 +653,7 @@ def main():
 
             c("\n")
             register_lengths = compute_register_lengths(set);
-            for reg_type, reg_length in register_lengths.items():
+            for reg_type, reg_length in list(register_lengths.items()):
                 c("static struct gen_perf_query_register_prog {0}_{1}_{2}[{3}];".format(gen.chipset,
                                                                                         set.underscore_name,
                                                                                         reg_type, reg_length))
@@ -694,7 +694,7 @@ def main():
 
             c(".config = {")
             c_indent(3)
-            for reg_type, reg_length in register_lengths.items():
+            for reg_type, reg_length in list(register_lengths.items()):
                 c(".{0} = {1}_{2}_{3},".format(reg_type, gen.chipset, set.underscore_name, reg_type))
                 c(".n_{0} = 0, /* Determined at runtime */".format(reg_type))
             c_outdent(3)

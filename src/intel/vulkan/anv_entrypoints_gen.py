@@ -160,7 +160,7 @@ extern const struct anv_device_dispatch_table ${layer}_device_dispatch_table;
 % endfor
 """, output_encoding='utf-8')
 
-TEMPLATE_C = Template(u"""\
+TEMPLATE_C = Template("""\
 /*
  * Copyright © 2015 Intel Corporation
  *
@@ -616,7 +616,7 @@ class StringIntMap(object):
 
     def bake(self):
         self.sorted_strings = \
-            sorted(self.strings.values(), key=lambda x: x.string)
+            sorted(list(self.strings.values()), key=lambda x: x.string)
         offset = 0
         for entry in self.sorted_strings:
             entry.offset = offset
@@ -738,7 +738,7 @@ def get_entrypoints(doc, entrypoints_to_defines):
             assert e.core_version is None
             e.extensions.append(ext)
 
-    return [e for e in entrypoints.values() if e.enabled]
+    return [e for e in list(entrypoints.values()) if e.enabled]
 
 
 def get_entrypoints_defines(doc):

@@ -49,7 +49,7 @@ LONGPRIMS=('PIPE_PRIM_TRIANGLES',
            'PIPE_PRIM_TRIANGLES_ADJACENCY',
            'PIPE_PRIM_TRIANGLE_STRIP_ADJACENCY')
 
-longprim = dict(zip(PRIMS, LONGPRIMS))
+longprim = dict(list(zip(PRIMS, LONGPRIMS)))
 intype_idx = dict(ubyte='IN_UBYTE', ushort='IN_USHORT', uint='IN_UINT')
 outtype_idx = dict(ushort='OUT_USHORT', uint='OUT_UINT')
 

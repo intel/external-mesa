@@ -44,7 +44,7 @@ from u_format_parse import *
 
 
 if sys.version_info < (3, 0):
-    integer_types = (int, long)
+    integer_types = (int, int)
 
 else:
     integer_types = (int, )

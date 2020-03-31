@@ -679,7 +679,7 @@ ir_expression_operation = [
    #
    # See also lower_instructions_visitor::ldexp_to_arith
    operation("csel", 3,
-             all_signatures=zip(all_types, zip(len(all_types) * (bool_type,), all_types, all_types)),
+             all_signatures=list(zip(all_types, list(zip(len(all_types) * (bool_type,), all_types, all_types)))),
              c_expression="{src0} ? {src1} : {src2}"),
 
    operation("bitfield_extract", 3,
@@ -775,9 +775,9 @@ ${op.get_template()}
          if lasts[i] is None:
             lasts[i] = item
 
-      print(enum_template.render(values=ir_expression_operation,
-                                 lasts=lasts))
+      print((enum_template.render(values=ir_expression_operation,
+                                 lasts=lasts)))
    elif sys.argv[1] == "strings":
-      print(strings_template.render(values=ir_expression_operation))
+      print((strings_template.render(values=ir_expression_operation)))
    elif sys.argv[1] == "constant":
-      print(constant_template.render(values=ir_expression_operation))
+      print((constant_template.render(values=ir_expression_operation)))

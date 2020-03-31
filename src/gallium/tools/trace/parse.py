@@ -34,7 +34,7 @@ import optparse
 from model import *
 
 
-ELEMENT_START, ELEMENT_END, CHARACTER_DATA, EOF = range(4)
+ELEMENT_START, ELEMENT_END, CHARACTER_DATA, EOF = list(range(4))
 
 
 class XmlToken:
@@ -102,7 +102,7 @@ class XmlTokenizer:
                 self.tokens.append(token)
             self.character_data = ''
     
-    def next(self):
+    def __next__(self):
         size = 16*1024
         while self.index >= len(self.tokens) and not self.final:
             self.tokens = []
@@ -112,7 +112,7 @@ class XmlTokenizer:
             data = data.rstrip('\0')
             try:
                 self.parser.Parse(data, self.final)
-            except xml.parsers.expat.ExpatError, e:
+            except xml.parsers.expat.ExpatError as e:
                 #if e.code == xml.parsers.expat.errors.XML_ERROR_NO_ELEMENTS:
                 if e.code == 3:
                     pass
@@ -149,7 +149,7 @@ class XmlParser:
         self.consume()
     
     def consume(self):
-        self.token = self.tokenizer.next()
+        self.token = next(self.tokenizer)
 
     def match_element_start(self, name):
         return self.token.type == ELEMENT_START and self.token.name_or_data == name

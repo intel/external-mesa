@@ -98,7 +98,7 @@ class Struct:
         serialized.'''
 
         obj = {}
-        for name, value in self.__dict__.items():
+        for name, value in list(self.__dict__.items()):
             if not name.startswith('_'):
                 obj[name] = value
         return obj
@@ -473,7 +473,7 @@ class Context(Dispatcher):
 
         count = min(info.count, self.MAX_ELEMENTS)
         indices = []
-        for i in xrange(info.start, info.start + count):
+        for i in range(info.start, info.start + count):
             offset = self._state.index_buffer.offset + i*index_size
             if offset + index_size > len(data):
                 index = 0
@@ -492,7 +492,7 @@ class Context(Dispatcher):
 
         count = min(count, self.MAX_ELEMENTS)
         vertices = []
-        for index in xrange(start, start + count):
+        for index in range(start, start + count):
             if index >= start + 16:
                 sys.stdout.write('\t...\n')
                 break

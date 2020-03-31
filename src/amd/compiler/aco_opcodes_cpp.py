@@ -73,4 +73,4 @@ extern const aco::Info instr_info = {
 from aco_opcodes import opcodes, VOPC_GFX6
 from mako.template import Template
 
-print(Template(template).render(opcodes=opcodes, VOPC_GFX6=VOPC_GFX6))
+print((Template(template).render(opcodes=opcodes, VOPC_GFX6=VOPC_GFX6)))

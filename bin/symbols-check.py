@@ -89,13 +89,13 @@ def main():
                 qualifier = fields[0]
                 symbol = fields[1]
             else:
-                print(args.symbols_file + ': invalid format: ' + line)
+                print((args.symbols_file + ': invalid format: ' + line))
                 exit(1)
 
             # The only supported qualifier is 'optional', which means the
             # symbol doesn't have to be exported by the library
             if qualifier and not qualifier == qualifier_optional:
-                print(args.symbols_file + ': invalid qualifier: ' + qualifier)
+                print((args.symbols_file + ': invalid qualifier: ' + qualifier))
                 exit(1)
 
             if qualifier == qualifier_optional:
@@ -120,10 +120,10 @@ def main():
     ]
 
     for symbol in unknown_symbols:
-        print(args.lib + ': unknown symbol exported: ' + symbol)
+        print((args.lib + ': unknown symbol exported: ' + symbol))
 
     for symbol in missing_symbols:
-        print(args.lib + ': missing symbol: ' + symbol)
+        print((args.lib + ': missing symbol: ' + symbol))
 
     if unknown_symbols or missing_symbols:
         exit(1)

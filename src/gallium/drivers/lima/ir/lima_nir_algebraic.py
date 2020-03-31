@@ -45,8 +45,8 @@ def run():
 
     print('#include "ir/lima_ir.h"')
 
-    print(nir_algebraic.AlgebraicPass("lima_nir_scale_trig",
-                                      scale_trig).render())
+    print((nir_algebraic.AlgebraicPass("lima_nir_scale_trig",
+                                      scale_trig).render()))
 
 if __name__ == '__main__':
     main()

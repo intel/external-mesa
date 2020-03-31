@@ -414,4 +414,4 @@ formats = [("pseudo", [Format.PSEUDO], 'Pseudo_instruction', list(itertools.prod
 from aco_opcodes import opcodes, Format
 from mako.template import Template
 
-print(Template(template).render(opcodes=opcodes, Format=Format))
+print((Template(template).render(opcodes=opcodes, Format=Format)))

@@ -32,9 +32,9 @@
 from __future__ import division
 
 
-VOID, UNSIGNED, SIGNED, FIXED, FLOAT = range(5)
+VOID, UNSIGNED, SIGNED, FIXED, FLOAT = list(range(5))
 
-SWIZZLE_X, SWIZZLE_Y, SWIZZLE_Z, SWIZZLE_W, SWIZZLE_0, SWIZZLE_1, SWIZZLE_NONE, = range(7)
+SWIZZLE_X, SWIZZLE_Y, SWIZZLE_Z, SWIZZLE_W, SWIZZLE_0, SWIZZLE_1, SWIZZLE_NONE, = list(range(7))
 
 PLAIN = 'plain'
 
@@ -365,7 +365,7 @@ def parse(filename):
 
         name = fields[0]
         layout = fields[1]
-        block_width, block_height, block_depth = map(int, fields[2:5])
+        block_width, block_height, block_depth = list(map(int, fields[2:5]))
         colorspace = fields[10]
 
         le_swizzles = [_swizzle_parse_map[swizzle] for swizzle in fields[9]]

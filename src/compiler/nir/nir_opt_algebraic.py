@@ -1155,7 +1155,7 @@ for bit_size in [8, 16, 32, 64]:
 
 invert = OrderedDict([('feq', 'fne'), ('fne', 'feq'), ('fge', 'flt'), ('flt', 'fge')])
 
-for left, right in itertools.combinations_with_replacement(invert.keys(), 2):
+for left, right in itertools.combinations_with_replacement(list(invert.keys()), 2):
    optimizations.append((('inot', ('ior(is_used_once)', (left, a, b), (right, c, d))),
                          ('iand', (invert[left], a, b), (invert[right], c, d))))
    optimizations.append((('inot', ('iand(is_used_once)', (left, a, b), (right, c, d))),
