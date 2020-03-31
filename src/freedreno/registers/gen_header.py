@@ -20,12 +20,12 @@ class Enum(object):
 			if value > 0x1000:
 				use_hex = True
 
-		print("enum %s {" % self.name)
+		print(("enum %s {" % self.name))
 		for (name, value) in self.values:
 			if use_hex:
-				print("\t%s = 0x%08x," % (name, value))
+				print(("\t%s = 0x%08x," % (name, value)))
 			else:
-				print("\t%s = %d," % (name, value))
+				print(("\t%s = %d," % (name, value)))
 		print("};\n")
 
 class Field(object):
@@ -89,7 +89,7 @@ def tab_to(name, value):
 	tab_count = (68 - (len(name) & ~7)) // 8
 	if tab_count == 0:
 		tab_count = 1
-	print(name + ('\t' * tab_count) + value)
+	print((name + ('\t' * tab_count) + value))
 
 def mask(low, high):
 	return ((0xffffffff >> (32 - (high + 1 - low))) << low)
@@ -121,10 +121,10 @@ class Bitset(object):
 				tab_to("#define %s__SHIFT" % name, "%d" % f.low)
 				type, val = f.ctype()
 
-				print("static inline uint32_t %s(%s val)\n{" % (name, type))
+				print(("static inline uint32_t %s(%s val)\n{" % (name, type)))
 				if f.shr > 0:
-					print("\tassert(!(val & 0x%x));" % mask(0, f.shr - 1))
-				print("\treturn ((%s) << %s__SHIFT) & %s__MASK;\n}" % (val, name, name))
+					print(("\tassert(!(val & 0x%x));" % mask(0, f.shr - 1)))
+				print(("\treturn ((%s) << %s__SHIFT) & %s__MASK;\n}" % (val, name, name)))
 
 class Array(object):
 	def __init__(self, attrs, domain):
@@ -135,7 +135,7 @@ class Array(object):
 		self.length = int(attrs["length"], 0)
 
 	def dump(self):
-		print("static inline uint32_t REG_%s_%s(uint32_t i0) { return 0x%08x + 0x%x*i0; }\n" % (self.domain, self.name, self.offset, self.stride))
+		print(("static inline uint32_t REG_%s_%s(uint32_t i0) { return 0x%08x + 0x%x*i0; }\n" % (self.domain, self.name, self.offset, self.stride)))
 
 class Reg(object):
 	def __init__(self, attrs, domain, array):
@@ -149,7 +149,7 @@ class Reg(object):
 		if self.array:
 			name = self.domain + "_" + self.array.name + "_" + self.name
 			offset = self.array.offset + self.offset
-			print("static inline uint32_t REG_%s(uint32_t i0) { return 0x%08x + 0x%x*i0; }" % (name, offset, self.array.stride))
+			print(("static inline uint32_t REG_%s(uint32_t i0) { return 0x%08x + 0x%x*i0; }" % (name, offset, self.array.stride)))
 		else:
 			name = self.domain + "_" + self.name
 			tab_to("#define REG_%s" % name, "0x%08x" % self.offset)
@@ -321,7 +321,7 @@ def main():
 	xml_file = sys.argv[1]
 
 	guard = str.replace(os.path.basename(xml_file), '.', '_').upper()
-	print("#ifndef %s\n#define %s\n" % (guard, guard))
+	print(("#ifndef %s\n#define %s\n" % (guard, guard)))
 
 	try:
 		p.parse(xml_file)
@@ -331,7 +331,7 @@ def main():
 
 	p.dump()
 
-	print("\n#endif /* %s */" % guard)
+	print(("\n#endif /* %s */" % guard))
 
 if __name__ == '__main__':
 	main()

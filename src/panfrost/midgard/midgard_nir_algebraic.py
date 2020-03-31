@@ -85,11 +85,11 @@ def run():
 
     print('#include "midgard_nir.h"')
 
-    print(nir_algebraic.AlgebraicPass("midgard_nir_lower_algebraic_late",
-                                      algebraic_late + converts).render())
+    print((nir_algebraic.AlgebraicPass("midgard_nir_lower_algebraic_late",
+                                      algebraic_late + converts).render()))
 
-    print(nir_algebraic.AlgebraicPass("midgard_nir_scale_trig",
-                                      scale_trig).render())
+    print((nir_algebraic.AlgebraicPass("midgard_nir_scale_trig",
+                                      scale_trig).render()))
 
 
 if __name__ == '__main__':

@@ -270,7 +270,7 @@ class HeaderWriter(object):
         field_lines_by_address = defaultdict(list)
         for line in self.field_lines:
             field_lines_by_address[line.address].append(line)
-        for field_lines in field_lines_by_address.values():
+        for field_lines in list(field_lines_by_address.values()):
             if sort == 'address':
                 field_lines.sort(key=lambda line: (line.bits[0], line.name))
             else:
@@ -280,7 +280,7 @@ class HeaderWriter(object):
         value_lines_by_address = defaultdict(list)
         for line in self.value_lines:
             value_lines_by_address[line.address].append(line)
-        for value_lines in value_lines_by_address.values():
+        for value_lines in list(value_lines_by_address.values()):
             if sort == 'address':
                 value_lines.sort(key=lambda line: (line.enumentry.value, line.name))
             else:

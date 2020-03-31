@@ -78,14 +78,14 @@ class Struct(object):
     def find_deps(self, struct_dict, enum_dict):
         deps = OrderedDict()
         add_struct_refs(deps, self.xml)
-        for d in deps.keys():
+        for d in list(deps.keys()):
             if d in struct_dict:
                 self.deps[d] = struct_dict[d]
             else:
                 assert(d in enum_dict)
 
     def add_xml(self, items):
-        for d in self.deps.values():
+        for d in list(self.deps.values()):
             d.add_xml(items)
         items[self.name] = self.xml
 
@@ -167,7 +167,7 @@ def main():
     for r in registers:
         r[:] = sorted(r.getchildren(), key=get_start)
 
-    genxml[:] = enums + sorted_structs.values() + instructions + registers
+    genxml[:] = enums + list(sorted_structs.values()) + instructions + registers
 
     print('<?xml version="1.0" ?>')
     print_node(sys.stdout, 0, genxml)

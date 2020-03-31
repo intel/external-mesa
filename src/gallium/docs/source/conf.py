@@ -37,8 +37,8 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'Gallium'
-copyright = u'2009-2012, VMware, X.org, Nouveau'
+project = 'Gallium'
+copyright = '2009-2012, VMware, X.org, Nouveau'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -175,8 +175,8 @@ htmlhelp_basename = 'Galliumdoc'
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-  ('index', 'Gallium.tex', u'Gallium Documentation',
-   u'VMware, X.org, Nouveau', 'manual'),
+  ('index', 'Gallium.tex', 'Gallium Documentation',
+   'VMware, X.org, Nouveau', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of

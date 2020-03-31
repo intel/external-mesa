@@ -27,7 +27,7 @@ def main():
         if i == 0:
             continue
         if entrypoints[i - 1] > entrypoints[i]:
-            print('ERROR: ' + entrypoints[i] + ' should come before ' + entrypoints[i - 1])
+            print(('ERROR: ' + entrypoints[i] + ' should come before ' + entrypoints[i - 1]))
             exit(1)
 
     print('All good :)')

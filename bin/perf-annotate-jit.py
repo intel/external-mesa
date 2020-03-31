@@ -151,7 +151,7 @@ class PerfParser(LineParser):
 
         asm = lookupAsm(mapFile, self.symbol)
 
-        addresses = samples.keys()
+        addresses = list(samples.keys())
         addresses.sort()
         total_samples = 0
 
@@ -165,7 +165,7 @@ class PerfParser(LineParser):
                 sys.stdout.write('%6u' % (sample))
                 total_samples += sample
             sys.stdout.write('%6u: %s\n' % (address, instr))
-        print 'total:', total_samples
+        print('total:', total_samples)
         assert len(samples) == 0
 
         sys.exit(0)

@@ -79,7 +79,7 @@ class UnionFind(object):
         return self.d[k]
 
     def sets(self):
-        for v in self.d.values():
+        for v in list(self.d.values()):
             if isinstance(v, set):
                 yield v
 
@@ -91,17 +91,17 @@ class Object(object):
     instead of subscript notation for member access.
     """
     def __init__(self, **kwargs):
-        for k, v in kwargs.items():
+        for k, v in list(kwargs.items()):
             setattr(self, k, v)
 
     def update(self, **kwargs):
-        for key, value in kwargs.items():
+        for key, value in list(kwargs.items()):
             setattr(self, key, value)
         return self
 
     def __str__(self):
         return 'Object(' + ', '.join(
-            '{k}={v}'.format(**locals()) for k, v, in self.__dict__.items()
+            '{k}={v}'.format(**locals()) for k, v, in list(self.__dict__.items())
         ) + ')'
 
     @staticmethod
@@ -110,7 +110,7 @@ class Object(object):
             return [Object.from_json(v) for v in json]
         elif isinstance(json, dict):
             obj = Object()
-            for k, v in json.items():
+            for k, v in list(json.items()):
                 if keys is not None and k in keys:
                     v = keys[k](v)
                 else:
@@ -123,9 +123,9 @@ class Object(object):
     @staticmethod
     def to_json(obj):
         if isinstance(obj, Object):
-            return dict((k, Object.to_json(v)) for k, v in obj.__dict__.items())
+            return dict((k, Object.to_json(v)) for k, v in list(obj.__dict__.items()))
         elif isinstance(obj, dict):
-            return dict((k, Object.to_json(v)) for k, v in obj.items())
+            return dict((k, Object.to_json(v)) for k, v in list(obj.items()))
         elif isinstance(obj, list):
             return [Object.to_json(v) for v in obj]
         else:
@@ -167,7 +167,7 @@ def merge_dicts(dicts, keys=None, values=None):
     """
     ks = set()
     for _, d in dicts:
-        ks.update(d.keys())
+        ks.update(list(d.keys()))
 
     result = {}
     for k in ks:
@@ -221,10 +221,10 @@ class RegisterDatabase(object):
         if self.__regmap_by_addr is not None:
             return
 
-        for enum in self.__enums.values():
+        for enum in list(self.__enums.values()):
             enum.entries.sort(key=lambda entry: entry.value)
 
-        for regtype in self.__register_types.values():
+        for regtype in list(self.__register_types.values()):
             regtype.fields.sort(key=lambda field: field.bits[0])
 
         self.__regmap_by_addr = defaultdict(list)
@@ -308,7 +308,7 @@ class RegisterDatabase(object):
                     regmap.name, regmap.type_ref))
 
     def __validate(self):
-        for regtype in self.__register_types.values():
+        for regtype in list(self.__register_types.values()):
             self.__validate_register_type(regtype)
         for regmap in self.__register_mappings:
             self.__validate_register_mapping(regmap)
@@ -339,13 +339,13 @@ class RegisterDatabase(object):
                     values[entry.value].append((origin, entry))
 
             if not union:
-                if any(len(entries) != len(enums) for entries in values.values()):
+                if any(len(entries) != len(enums) for entries in list(values.values())):
                     raise RegisterDatabaseError(
                         'Attempting to merge enums with different values')
 
             return [
                 merge_objects(entries)
-                for entries in values.values()
+                for entries in list(values.values())
             ]
 
         return merge_objects(
@@ -372,7 +372,7 @@ class RegisterDatabase(object):
             del self.__enums[name]
         self.__enums[newname] = newenum
 
-        for regtype in self.__register_types.values():
+        for regtype in list(self.__register_types.values()):
             for field in regtype.fields:
                 if getattr(field, 'enum_ref', None) in names:
                     field.enum_ref = newname
@@ -398,13 +398,13 @@ class RegisterDatabase(object):
                     fields[field.bits[0]].append((origin, field))
 
             if not union:
-                if any(len(entries) != len(regtypes) for entries in fields.values()):
+                if any(len(entries) != len(regtypes) for entries in list(fields.values())):
                     raise RegisterDatabaseError(
                         'Attempting to merge register types with different fields')
 
             return [
                 merge_objects(field, keys=field_keys)
-                for field in fields.values()
+                for field in list(fields.values())
             ]
 
         with merge_scope('Register types {0}'.format(', '.join(name for name, _ in regtypes))):
@@ -468,7 +468,7 @@ class RegisterDatabase(object):
         Yields all (name, enum) pairs.
         """
         self.__post_init()
-        for name, enum in self.__enums.items():
+        for name, enum in list(self.__enums.items()):
             yield (name, enum)
 
     def fields(self):
@@ -476,7 +476,7 @@ class RegisterDatabase(object):
         Yields all (register_type, fields) pairs.
         """
         self.__post_init()
-        for regtype in self.__register_types.values():
+        for regtype in list(self.__register_types.values()):
             for field in regtype.fields:
                 yield (regtype, field)
 
@@ -485,7 +485,7 @@ class RegisterDatabase(object):
         Yields all (name, register_type) pairs.
         """
         self.__post_init()
-        for name, regtype in self.__register_types.items():
+        for name, regtype in list(self.__register_types.items()):
             yield (name, regtype)
 
     def register_mappings_by_name(self, name):
@@ -588,7 +588,7 @@ class RegisterDatabase(object):
                     if hasattr(field, 'enum_ref'):
                         fields_merge[field.name].add(field.enum_ref)
 
-            for enum_refs in fields_merge.values():
+            for enum_refs in list(fields_merge.values()):
                 if len(enum_refs) > 1:
                     enum_refs = list(enum_refs)
                     enums_merge.add(enum_refs[0])
@@ -771,13 +771,13 @@ class RegisterDatabase(object):
             return placeholder
 
         # Pre-create non-indented encodings for inner objects
-        for enum in obj['enums'].values():
+        for enum in list(obj['enums'].values()):
             enum['entries'] = [
                 placeholder(entry)
                 for entry in enum['entries']
             ]
 
-        for regtype in obj['register_types'].values():
+        for regtype in list(obj['register_types'].values()):
             regtype['fields'] = [
                 placeholder(field)
                 for field in regtype['fields']
@@ -804,11 +804,11 @@ class RegisterDatabase(object):
     def from_json(json):
         db = RegisterDatabase()
 
-        db.__enums = dict((k, Object.from_json(v)) for k, v in json['enums'].items())
+        db.__enums = dict((k, Object.from_json(v)) for k, v in list(json['enums'].items()))
         if 'register_types' in json:
             db.__register_types = dict(
                 (k, Object.from_json(v))
-                for k, v in json['register_types'].items()
+                for k, v in list(json['register_types'].items())
             )
         if 'register_mappings' in json:
             db.__register_mappings = Object.from_json(json['register_mappings'])
@@ -843,7 +843,7 @@ def deduplicate_enums(regdb):
     for name, enum in regdb.enums():
         buckets[RegisterDatabase.enum_key(enum)].append(name)
 
-    for bucket in buckets.values():
+    for bucket in list(buckets.values()):
         if len(bucket) > 1:
             regdb.merge_enums(bucket, bucket[0])
 
@@ -867,7 +867,7 @@ def deduplicate_register_types(regdb):
         )
         buckets[key].append((name, regtype.fields))
 
-    for bucket in buckets.values():
+    for bucket in list(buckets.values()):
         # Register types in the same bucket have the same fields in the same
         # places, but they may have different enum_refs. Allow merging when
         # one has an enum_ref and another doesn't, but don't merge if they

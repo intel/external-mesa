@@ -199,7 +199,7 @@ class Container(object):
 
     def iter_prop(self, prop):
         if prop == 'length':
-            return self.length_by_gen.items()
+            return list(self.length_by_gen.items())
         else:
             raise ValueError('Invalid property: "{0}"'.format(prop))
 
@@ -232,9 +232,9 @@ class Field(object):
 
     def iter_prop(self, prop):
         if prop == 'bits':
-            return self.bits_by_gen.items()
+            return list(self.bits_by_gen.items())
         elif prop == 'start':
-            return self.start_by_gen.items()
+            return list(self.start_by_gen.items())
         else:
             raise ValueError('Invalid property: "{0}"'.format(prop))
 
@@ -332,7 +332,7 @@ def main():
     if set(engines) - set(valid_engines):
         print("Invalid engine specified, valid engines are:\n")
         for e in valid_engines:
-            print("\t%s" % e)
+            print(("\t%s" % e))
         sys.exit(1)
 
     # Maps name => Container

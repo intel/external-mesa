@@ -1559,7 +1559,7 @@ for (gfx8, gfx10, name) in SCRATCH:
 # check for duplicate opcode numbers
 for ver in ['gfx9', 'gfx10']:
     op_to_name = {}
-    for op in opcodes.values():
+    for op in list(opcodes.values()):
         if op.format in [Format.PSEUDO, Format.PSEUDO_BRANCH, Format.PSEUDO_BARRIER, Format.PSEUDO_REDUCTION]:
             continue
 
@@ -1575,7 +1575,7 @@ for ver in ['gfx9', 'gfx10']:
             if ver in ['gfx8', 'gfx9'] and names == set(['v_mul_lo_i32', 'v_mul_lo_u32']):
                 continue
 
-            print('%s and %s share the same opcode number (%s)' % (op_to_name[key], op.name, ver))
+            print(('%s and %s share the same opcode number (%s)' % (op_to_name[key], op.name, ver)))
             sys.exit(1)
         else:
             op_to_name[key] = op.name

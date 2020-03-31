@@ -68,7 +68,7 @@ def getFunctionsFromRoots(roots):
     for root in roots:
         for func in _getFunctionList(root):
             functions[func.name] = func
-    functions = functions.values()
+    functions = list(functions.values())
 
     # Sort the function list by name.
     functions = sorted(functions, key=lambda f: f.name)

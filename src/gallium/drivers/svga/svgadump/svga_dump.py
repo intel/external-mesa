@@ -67,17 +67,17 @@ class decl_dumper_t(decl_visitor.decl_visitor_t):
 
     def visit_enumeration(self):
         if enums:
-            print '   switch(%s) {' % ("(*cmd)" + self._instance,)
+            print('   switch(%s) {' % ("(*cmd)" + self._instance,))
             for name, value in self.decl.values:
-                print '   case %s:' % (name,)
-                print '      _debug_printf("\\t\\t%s = %s\\n");' % (self._instance, name)
-                print '      break;'
-            print '   default:'
-            print '      _debug_printf("\\t\\t%s = %%i\\n", %s);' % (self._instance, "(*cmd)" + self._instance)
-            print '      break;'
-            print '   }'
+                print('   case %s:' % (name,))
+                print('      _debug_printf("\\t\\t%s = %s\\n");' % (self._instance, name))
+                print('      break;')
+            print('   default:')
+            print('      _debug_printf("\\t\\t%s = %%i\\n", %s);' % (self._instance, "(*cmd)" + self._instance))
+            print('      break;')
+            print('   }')
         else:
-            print '   _debug_printf("\\t\\t%s = %%i\\n", %s);' % (self._instance, "(*cmd)" + self._instance)
+            print('   _debug_printf("\\t\\t%s = %%i\\n", %s);' % (self._instance, "(*cmd)" + self._instance))
 
 
 def dump_decl(instance, decl):
@@ -153,7 +153,7 @@ class type_dumper_t(type_visitor.type_visitor_t):
         dump_decl(self.instance, decl)
 
     def print_instance(self, format):
-        print '   _debug_printf("\\t\\t%s = %s\\n", %s);' % (self.instance, format, "(*cmd)" + self.instance)
+        print('   _debug_printf("\\t\\t%s = %s\\n", %s);' % (self.instance, format, "(*cmd)" + self.instance))
 
 
 def dump_type(instance, type_):
@@ -163,12 +163,12 @@ def dump_type(instance, type_):
 
 
 def dump_struct(decls, class_):
-    print 'static void'
-    print 'dump_%s(const %s *cmd)' % (class_.name, class_.name)
-    print '{'
+    print('static void')
+    print('dump_%s(const %s *cmd)' % (class_.name, class_.name))
+    print('{')
     dump_decl('', class_)
-    print '}'
-    print ''
+    print('}')
+    print('')
 
 
 cmds = [
@@ -205,48 +205,48 @@ cmds = [
 ]
 
 def dump_cmds():
-    print r'''
+    print(r'''
 void            
 svga_dump_command(uint32_t cmd_id, const void *data, uint32_t size)
 {
    const uint8_t *body = (const uint8_t *)data;
    const uint8_t *next = body + size;
-'''
-    print '   switch(cmd_id) {'
+''')
+    print('   switch(cmd_id) {')
     indexes = 'ijklmn'
     for id, header, body, footer in cmds:
-        print '   case %s:' % id
-        print '      _debug_printf("\\t%s\\n");' % id
-        print '      {'
-        print '         const %s *cmd = (const %s *)body;' % (header, header)
+        print('   case %s:' % id)
+        print('      _debug_printf("\\t%s\\n");' % id)
+        print('      {')
+        print('         const %s *cmd = (const %s *)body;' % (header, header))
         if len(body):
-            print '         unsigned ' + ', '.join(indexes[:len(body)]) + ';'
-        print '         dump_%s(cmd);' % header
-        print '         body = (const uint8_t *)&cmd[1];'
+            print('         unsigned ' + ', '.join(indexes[:len(body)]) + ';')
+        print('         dump_%s(cmd);' % header)
+        print('         body = (const uint8_t *)&cmd[1];')
         for i in range(len(body)):
             struct, count = body[i]
             idx = indexes[i]
-            print '         for(%s = 0; %s < cmd->%s; ++%s) {' % (idx, idx, count, idx)
-            print '            dump_%s((const %s *)body);' % (struct, struct)
-            print '            body += sizeof(%s);' % struct
-            print '         }'
+            print('         for(%s = 0; %s < cmd->%s; ++%s) {' % (idx, idx, count, idx))
+            print('            dump_%s((const %s *)body);' % (struct, struct))
+            print('            body += sizeof(%s);' % struct)
+            print('         }')
         if footer is not None:
-            print '         while(body + sizeof(%s) <= next) {' % footer
-            print '            dump_%s((const %s *)body);' % (footer, footer)
-            print '            body += sizeof(%s);' % footer
-            print '         }'
+            print('         while(body + sizeof(%s) <= next) {' % footer)
+            print('            dump_%s((const %s *)body);' % (footer, footer))
+            print('            body += sizeof(%s);' % footer)
+            print('         }')
         if id == 'SVGA_3D_CMD_SHADER_DEFINE':
-            print '         svga_shader_dump((const uint32_t *)body,'
-            print '                          (unsigned)(next - body)/sizeof(uint32_t),'
-            print '                          FALSE);'
-            print '         body = next;'
-        print '      }'
-        print '      break;'
-    print '   default:'
-    print '      _debug_printf("\\t0x%08x\\n", cmd_id);'
-    print '      break;'
-    print '   }'
-    print r'''
+            print('         svga_shader_dump((const uint32_t *)body,')
+            print('                          (unsigned)(next - body)/sizeof(uint32_t),')
+            print('                          FALSE);')
+            print('         body = next;')
+        print('      }')
+        print('      break;')
+    print('   default:')
+    print('      _debug_printf("\\t0x%08x\\n", cmd_id);')
+    print('      break;')
+    print('   }')
+    print(r'''
    while(body + sizeof(uint32_t) <= next) {
       _debug_printf("\t\t0x%08x\n", *(const uint32_t *)body);
       body += sizeof(uint32_t);
@@ -254,8 +254,8 @@ svga_dump_command(uint32_t cmd_id, const void *data, uint32_t size)
    while(body + sizeof(uint32_t) <= next)
       _debug_printf("\t\t0x%02x\n", *body++);
 }
-'''
-    print r'''
+''')
+    print(r'''
 void            
 svga_dump_commands(const void *commands, uint32_t size)
 {
@@ -288,25 +288,25 @@ svga_dump_commands(const void *commands, uint32_t size)
       }
    }
 }
-'''
+''')
 
 def main():
-    print copyright.strip()
-    print
-    print '/**'
-    print ' * @file'
-    print ' * Dump SVGA commands.'
-    print ' *'
-    print ' * Generated automatically from svga3d_reg.h by svga_dump.py.'
-    print ' */'
-    print
-    print '#include "svga_types.h"'
-    print '#include "svga_shader_dump.h"'
-    print '#include "svga3d_reg.h"'
-    print
-    print '#include "util/u_debug.h"'
-    print '#include "svga_dump.h"'
-    print
+    print(copyright.strip())
+    print()
+    print('/**')
+    print(' * @file')
+    print(' * Dump SVGA commands.')
+    print(' *')
+    print(' * Generated automatically from svga3d_reg.h by svga_dump.py.')
+    print(' */')
+    print()
+    print('#include "svga_types.h"')
+    print('#include "svga_shader_dump.h"')
+    print('#include "svga3d_reg.h"')
+    print()
+    print('#include "util/u_debug.h"')
+    print('#include "svga_dump.h"')
+    print()
 
     config = parser.config_t(
         include_paths = ['../../../include', '../include'],

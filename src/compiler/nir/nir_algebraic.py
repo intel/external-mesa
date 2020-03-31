@@ -62,8 +62,8 @@ def get_c_opcode(op):
 
 
 if sys.version_info < (3, 0):
-    integer_types = (int, long)
-    string_type = unicode
+    integer_types = (int, int)
+    string_type = str
 
 else:
     integer_types = (int, )
@@ -1021,7 +1021,7 @@ class TreeAutomaton(object):
 
             # Iterate over all possible source combinations where at least one
             # is on the worklist.
-            for src_indices in itertools.product(range(len(rep)), repeat=num_srcs):
+            for src_indices in itertools.product(list(range(len(rep))), repeat=num_srcs):
                if all(src_idx < op_worklist_index for src_idx in src_indices):
                   continue
 

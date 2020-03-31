@@ -187,7 +187,7 @@ def extension_order(ext):
     return order
 for i in range(len(EXTENSIONS) - 1):
     if extension_order(EXTENSIONS[i + 1]) < extension_order(EXTENSIONS[i]):
-        print(EXTENSIONS[i + 1].name + ' should come before ' + EXTENSIONS[i].name)
+        print((EXTENSIONS[i + 1].name + ' should come before ' + EXTENSIONS[i].name))
         exit(1)
 
 class VkVersion:

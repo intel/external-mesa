@@ -53,7 +53,7 @@ def deduce_missing_register_types(regdb):
     for regmap in regdb.register_mappings():
         buckets[RE_number.sub('0', regmap.name)].append(regmap)
 
-    for bucket in buckets.values():
+    for bucket in list(buckets.values()):
         if len(bucket) <= 1:
             continue
 

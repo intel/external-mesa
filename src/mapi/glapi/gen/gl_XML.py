@@ -951,27 +951,27 @@ class gl_api(object):
 
     def functionIterateByOffset(self):
         max_offset = -1
-        for func in self.functions_by_name.values():
+        for func in list(self.functions_by_name.values()):
             if func.offset > max_offset:
                 max_offset = func.offset
 
 
         temp = [None for i in range(0, max_offset + 1)]
-        for func in self.functions_by_name.values():
+        for func in list(self.functions_by_name.values()):
             if func.offset != -1:
                 temp[ func.offset ] = func
 
 
-        list = []
+        funclist = []
         for i in range(0, max_offset + 1):
             if temp[i]:
-                list.append(temp[i])
+                funclist.append(temp[i])
 
-        return iter(list);
+        return iter(funclist);
 
 
     def functionIterateAll(self):
-        return self.functions_by_name.values()
+        return list(self.functions_by_name.values())
 
 
     def enumIterateByName(self):
@@ -1010,7 +1010,7 @@ class gl_api(object):
 
 
     def typeIterate(self):
-        return self.types_by_name.values()
+        return list(self.types_by_name.values())
 
 
     def find_type( self, type_name ):

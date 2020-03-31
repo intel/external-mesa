@@ -35,7 +35,7 @@ import sys
 def strip_object_hook(obj):
     if '__class__' in obj:
         return None
-    for name in obj.keys():
+    for name in list(obj.keys()):
         if name.startswith('__') and name.endswith('__'):
             del obj[name]
     return obj
@@ -79,7 +79,7 @@ class Dumper(Visitor):
     def visitObject(self, node):
         self.enter_object()
 
-        members = node.keys()
+        members = list(node.keys())
         members.sort()
         for i in range(len(members)):
             name = members[i]
@@ -147,8 +147,8 @@ class Comparer(Visitor):
             return False
         if len(a) != len(b) and not self.ignore_added:
             return False
-        ak = a.keys()
-        bk = b.keys()
+        ak = list(a.keys())
+        bk = list(b.keys())
         ak.sort()
         bk.sort()
         if ak != bk and not self.ignore_added:
@@ -201,7 +201,7 @@ class Differ(Visitor):
             self.dumper.enter_object()
             names = set(a.keys())
             if not self.comparer.ignore_added:
-                names.update(b.keys())
+                names.update(list(b.keys()))
             names = list(names)
             names.sort()
 
@@ -247,7 +247,7 @@ class Differ(Visitor):
             self.replace(a, b)
 
     def replace(self, a, b):
-        if isinstance(a, basestring) and isinstance(b, basestring):
+        if isinstance(a, str) and isinstance(b, str):
             if '\n' in a or '\n' in b:
                 a = a.splitlines()
                 b = b.splitlines()
@@ -276,7 +276,7 @@ class Differ(Visitor):
         self.dumper.visit(b)
 
     def isMultilineString(self, value):
-        return isinstance(value, basestring) and '\n' in value
+        return isinstance(value, str) and '\n' in value
     
     def replaceMultilineString(self, a, b):
         self.dumper.visit(a)
