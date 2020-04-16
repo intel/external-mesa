@@ -27,7 +27,9 @@ endif
 
 LOCAL_C_INCLUDES += \
 	$(MESA_TOP)/src \
-	$(MESA_TOP)/include
+	$(MESA_TOP)/include \
+	system/core/libcutils/include \
+	system/core/inclue
 
 MESA_VERSION := $(shell cat $(MESA_TOP)/VERSION)
 LOCAL_CFLAGS += \

@@ -649,7 +649,7 @@ retry:
 
    mtx_unlock(&bufmgr->lock);
 
-   DBG("bo_create: buf %d (%s) %llub\n", bo->gem_handle, bo->name,
+   DBG("bo_create: buf %d (%s) 0x%016llx %llub\n", bo->gem_handle, bo->name, bo->gtt_offset,
        (unsigned long long) size);
 
    return bo;
