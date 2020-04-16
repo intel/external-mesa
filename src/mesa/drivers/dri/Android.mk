@@ -34,8 +34,7 @@ MESA_DRI_CFLAGS := \
 MESA_DRI_C_INCLUDES := \
 	$(addprefix $(MESA_TOP)/, $(mesa_dri_common_INCLUDES)) \
 	$(MESA_TOP)/src/gallium/include \
-	$(MESA_TOP)/src/gallium/auxiliary \
-	external/expat/lib
+	$(MESA_TOP)/src/gallium/auxiliary
 
 MESA_DRI_WHOLE_STATIC_LIBRARIES := \
 	libmesa_glsl \
@@ -47,6 +46,8 @@ MESA_DRI_WHOLE_STATIC_LIBRARIES := \
 	libmesa_util
 
 MESA_DRI_SHARED_LIBRARIES := \
+	libutilscallstack \
+	libutils \
 	libcutils \
 	libdl \
 	libglapi \

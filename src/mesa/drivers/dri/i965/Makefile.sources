@@ -79,6 +79,8 @@ i965_FILES = \
 	hsw_sol.c \
 	intel_batchbuffer.c \
 	intel_batchbuffer.h \
+	intel_batchbuffer_log.c \
+	intel_batchbuffer_log.h \
 	intel_blit.c \
 	intel_blit.h \
 	intel_buffer_objects.c \
@@ -108,7 +110,9 @@ i965_FILES = \
 	intel_tex_obj.h \
 	intel_tex_validate.c \
 	intel_upload.c \
-	libdrm_macros.h
+	libdrm_macros.h \
+	callstack.h \
+	callstack.cpp
 
 i965_gen4_FILES = \
 	genX_blorp_exec.c \

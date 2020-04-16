@@ -38,6 +38,7 @@
 
 #include <xf86drm.h>
 #include "drm-uapi/i915_drm.h"
+#include "intel_batchbuffer_log.h"
 
 #define FILE_DEBUG_FLAG DEBUG_BUFMGR
 
@@ -52,6 +53,8 @@
  */
 #define BATCH_SZ (20 * 1024)
 #define STATE_SZ (16 * 1024)
+
+FILE *g_log_file = NULL;
 
 static void
 intel_batchbuffer_reset(struct brw_context *brw);
@@ -144,6 +147,11 @@ intel_batchbuffer_init(struct brw_context *brw)
       malloc(batch->exec_array_size * sizeof(batch->validation_list[0]));
 
    if (INTEL_DEBUG & DEBUG_BATCH) {
+       g_log_file = create_log_file();
+       if (!g_log_file) {
+           g_log_file = stderr;
+       }
+
       batch->state_batch_sizes =
          _mesa_hash_table_u64_create(NULL);
 
@@ -153,7 +161,7 @@ intel_batchbuffer_init(struct brw_context *brw)
          GEN_BATCH_DECODE_OFFSETS |
          GEN_BATCH_DECODE_FLOATS;
 
-      gen_batch_decode_ctx_init(&batch->decoder, devinfo, stderr,
+      gen_batch_decode_ctx_init(&batch->decoder, devinfo, g_log_file,
                                 decode_flags, NULL, decode_get_bo,
                                 decode_get_state_size, brw);
       batch->decoder.max_vbo_decoded_lines = 100;
@@ -335,6 +343,11 @@ intel_batchbuffer_free(struct intel_batchbuffer *batch)
    if (batch->state_batch_sizes) {
       _mesa_hash_table_u64_destroy(batch->state_batch_sizes, NULL);
       gen_batch_decode_ctx_finish(&batch->decoder);
+   }
+
+   if (INTEL_DEBUG & DEBUG_BATCH) {
+	   close_log_file(g_log_file);
+	   g_log_file = stderr;
    }
 }
 

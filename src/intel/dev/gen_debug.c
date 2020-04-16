@@ -108,10 +108,28 @@ intel_debug_flag_for_shader_stage(gl_shader_stage stage)
    return flags[stage];
 }
 
+#ifdef __ANDROID__
+#include <cutils/properties.h>
+static char prop_buf[PROPERTY_VALUE_MAX] = {'\0'};
+
+static char* getprop(char *key) {
+	if(property_get(key, prop_buf, "") > 0) {
+		return prop_buf;
+	}
+	return prop_buf;
+
+}
+#endif
+
 static void
 brw_process_intel_debug_variable_once(void)
 {
+#ifdef __ANDROID__
+   INTEL_DEBUG = parse_debug_string(getprop("INTEL_DEBUG"), debug_control);
+#else
    INTEL_DEBUG = parse_debug_string(getenv("INTEL_DEBUG"), debug_control);
+#endif
+
 }
 
 void
