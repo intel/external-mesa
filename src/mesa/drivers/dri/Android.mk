@@ -47,6 +47,8 @@ MESA_DRI_WHOLE_STATIC_LIBRARIES := \
 	libmesa_util
 
 MESA_DRI_SHARED_LIBRARIES := \
+	libutilscallstack \
+	libutils \
 	libcutils \
 	libdl \
 	libglapi \
