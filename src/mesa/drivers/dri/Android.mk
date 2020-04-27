@@ -35,7 +35,6 @@ MESA_DRI_C_INCLUDES := \
 	$(addprefix $(MESA_TOP)/, $(mesa_dri_common_INCLUDES)) \
 	$(MESA_TOP)/src/gallium/include \
 	$(MESA_TOP)/src/gallium/auxiliary \
-	system/core/include \
 	external/expat/lib
 
 MESA_DRI_WHOLE_STATIC_LIBRARIES := \
